@@ -10,12 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { collection, query, where, onSnapshot, updateDoc, doc } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
-import { notificationService, NotificationService } from "@/lib/notifications"
 import type { Order } from "@/lib/types"
 import { format } from "date-fns"
 import { Search, Download, RefreshCw, Clock, CheckCircle, AlertCircle, Package, Loader2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { normalizeDate } from "@/utils/date"
+import { createNotification, createOrderStatusNotification } from "@/services/notifications"
 
 export function OrdersDashboard() {
   const { user } = useAuth()
@@ -98,8 +98,8 @@ export function OrdersDashboard() {
         updatedAt: new Date(),
       })
 
-      const notification = NotificationService.createOrderStatusNotification({ ...order, status: newStatus }, newStatus)
-      await notificationService.createNotification(notification)
+      const notification = createOrderStatusNotification({ ...order, status: newStatus }, newStatus)
+      await createNotification(notification)
 
       toast({
         title: "Order Updated",
