@@ -94,7 +94,7 @@ export function AnalyticsDashboard() {
 
   const exportToCSV = () => {
     const csvContent = [
-      ["Date", "Employee", "Email", "Meal Option", "Dietary Type"],
+      ["Date", "Employee","Meal Option", "Dietary Type"],
       ...orders.map((order) => [
         normalizeDate(order.createdAt, "yyyy-MM-dd"),
         order.userName,
@@ -127,7 +127,6 @@ export function AnalyticsDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
         <div className="flex items-center gap-4">
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-40">
