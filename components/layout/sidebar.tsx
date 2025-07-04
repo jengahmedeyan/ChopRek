@@ -17,38 +17,40 @@ import {
   ChevronRight,
   User,
   ShoppingCart,
+  LogOut
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { usePathname, useRouter } from "next/navigation"
 
-interface SidebarProps {
-  activeTab: string
-  onTabChange: (tab: string) => void
-}
-
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  const { user } = useAuth()
+export function Sidebar() {
+  const { user, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
 
   const adminMenuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null },
-    { id: "orders", label: "Orders", icon: ShoppingCart, badge: "3" },
-    { id: "menu", label: "Menu Creator", icon: UtensilsCrossed, badge: null },
-    { id: "analytics", label: "Analytics", icon: BarChart3, badge: null },
-    { id: "reports", label: "Reports", icon: FileText, badge: null },
-    { id: "users", label: "Users", icon: Users, badge: "New" },
-    { id: "departments", label: "Departments", icon: Building, badge: null },
-    { id: "notifications", label: "Notifications", icon: Bell, badge: "2" },
-    { id: "settings", label: "Settings", icon: Settings, badge: null },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null, path: "/admin/dashboard" },
+    { id: "orders", label: "Orders", icon: ShoppingCart, badge: "3", path: "/admin/orders" },
+    { id: "menu", label: "Menu Creator", icon: UtensilsCrossed, badge: null, path: "/admin/menu" },
+    { id: "reports", label: "Reports", icon: FileText, badge: null, path: "/admin/reports" },
+    { id: "users", label: "Users", icon: Users, badge: "New", path: "/admin/users" },
+    { id: "departments", label: "Departments", icon: Building, badge: null, path: "/admin/departments" },
+    // { id: "notifications", label: "Notifications", icon: Bell, badge: "2", path: "/admin/notifications" },
+    { id: "settings", label: "Settings", icon: Settings, badge: null, path: "/admin/settings" },
   ]
 
   const employeeMenuItems = [
-    { id: "menu", label: "Today's Menu", icon: UtensilsCrossed, badge: null },
-    { id: "orders", label: "My Orders", icon: ShoppingCart, badge: null },
-    { id: "profile", label: "Profile", icon: User, badge: null },
-    { id: "notifications", label: "Notifications", icon: Bell, badge: "1" },
+    { id: "menu", label: "Today's Menu", icon: UtensilsCrossed, badge: null, path: "/employee/menu" },
+    { id: "orders", label: "My Orders", icon: ShoppingCart, badge: null, path: "/employee/orders" },
+    // { id: "profile", label: "Profile", icon: User, badge: null, path: "/employee/profile" },
+    // { id: "notifications", label: "Notifications", icon: Bell, badge: "1", path: "/employee/notifications" },
   ]
 
   const menuItems = user?.role === "admin" ? adminMenuItems : employeeMenuItems
+
+  const handleNavigation = (path: string) => {
+    router.push(path)
+  }
 
   return (
     <div
@@ -89,7 +91,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <ul className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon
-            const isActive = activeTab === item.id
+            const isActive = pathname === item.path
 
             return (
               <li key={item.id}>
@@ -100,7 +102,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                     collapsed ? "px-2" : "px-3",
                     isActive && "bg-blue-50 text-blue-700 border-blue-200",
                   )}
-                  onClick={() => onTabChange(item.id)}
+                  onClick={() => handleNavigation(item.path)}
                 >
                   <Icon className={cn("h-4 w-4", collapsed ? "" : "mr-3")} />
                   {!collapsed && (
@@ -119,6 +121,20 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           })}
         </ul>
       </nav>
+
+      <div className="p-2">
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 h-10",
+            collapsed ? "px-2" : "px-3"
+          )}
+          onClick={logout}
+        >
+          <LogOut className={cn("h-4 w-4", collapsed ? "" : "mr-3")} />
+          {!collapsed && "Sign Out"}
+        </Button>
+      </div>
     </div>
   )
 }
