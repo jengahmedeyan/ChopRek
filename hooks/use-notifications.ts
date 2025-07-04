@@ -1,7 +1,11 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { notificationService } from "@/lib/notifications"
+import {
+  subscribeToUserNotifications,
+  markAllAsRead as markAllAsReadFn,
+  markAsRead as markAsReadFn,
+} from "@/services/notifications"
 import { useAuth } from "@/lib/auth-context"
 import type { Notification } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
@@ -25,7 +29,7 @@ export function useNotifications() {
 
     const setupNotificationListener = async () => {
       try {
-        unsubscribe = await notificationService.subscribeToUserNotifications(user.uid, (newNotifications) => {
+        unsubscribe = await subscribeToUserNotifications(user.uid, (newNotifications) => {
           const previousNotifications = previousNotificationsRef.current
           setNotifications(newNotifications)
           setUnreadCount(newNotifications.filter((n) => !n.read).length)
@@ -64,15 +68,15 @@ export function useNotifications() {
         unsubscribe()
       }
     }
-  }, [user]) // Updated to use the entire user object
+  }, [user])
 
   const markAsRead = async (notificationId: string) => {
-    await notificationService.markAsRead(notificationId)
+    await markAsReadFn(notificationId)
   }
 
   const markAllAsRead = async () => {
     if (user) {
-      await notificationService.markAllAsRead(user.uid)
+      await markAllAsReadFn(user.uid)
     }
   }
 
