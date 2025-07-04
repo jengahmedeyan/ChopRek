@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label"
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDocs } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
-import { notificationService, NotificationService } from "@/lib/notifications"
 import type { Menu, Order } from "@/lib/types"
 import { format, isBefore, parse } from "date-fns"
 import { Clock, CheckCircle, AlertCircle, Utensils, Loader2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { createBulkNotifications, createNewOrderNotification } from "@/services/notifications"
 
 export function MenuViewer() {
   const { user } = useAuth()
@@ -134,11 +134,11 @@ export function MenuViewer() {
         const adminSnapshot = await getDocs(adminUsersQuery)
 
         const adminNotifications = adminSnapshot.docs.map((adminDoc) =>
-          NotificationService.createNewOrderNotification({ ...orderData, id: orderRef.id }, adminDoc.id),
+          createNewOrderNotification({ ...orderData, id: orderRef.id }, adminDoc.id),
         )
 
         if (adminNotifications.length > 0) {
-          await notificationService.createBulkNotifications(adminNotifications)
+          await createBulkNotifications(adminNotifications)
         }
 
         toast({
