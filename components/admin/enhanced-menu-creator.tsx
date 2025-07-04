@@ -173,7 +173,7 @@ export function EnhancedMenuCreator() {
           title: data.title || "Untitled",
           description: data.description || "",
           date: data.date || new Date().toISOString().split("T")[0],
-          cutoffTime: data.cutoffTime || "14:00",
+          cutoffTime: data.cutoffTime || "11:00",
           options: data.options || [],
           isPublished: data.isPublished ?? false,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
