@@ -3,24 +3,27 @@
 import { useAuth } from "@/lib/auth-context"
 import { LoginForm } from "@/components/auth/login-form"
 import { SignUpForm } from "@/components/auth/signup-form"
-import { EnhancedMenuCreator } from "@/components/admin/enhanced-menu-creator"
-import { OrdersDashboard } from "@/components/admin/orders-dashboard"
-import { ComprehensiveReports } from "@/components/admin/comprehensive-reports"
-import { MenuViewer } from "@/components/employee/menu-viewer"
-import { Sidebar } from "@/components/layout/sidebar"
-import { Navbar } from "@/components/layout/navbar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { AlertCircle, RefreshCw } from "lucide-react"
-import { useState } from "react"
-import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
-import MyOrders from "@/components/employee/my-orders"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
-export default function Home() {
+export default function AuthPage() {
   const { user, loading, error } = useAuth()
   const [authMode, setAuthMode] = useState<"login" | "signup">("login")
-  const [activeTab, setActiveTab] = useState(user?.role === "admin" ? "dashboard" : "menu")
+  const router = useRouter()
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === "admin") {
+        router.push("/admin/dashboard")
+      } else {
+        router.push("/employee/menu")
+      }
+    }
+  }, [user, router])
 
   if (error) {
     return (
@@ -53,93 +56,31 @@ export default function Home() {
     )
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🍽️</div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">LunchHub</h1>
-            <p className="text-gray-600">Professional lunch ordering system for modern offices</p>
-          </div>
-
-          <Tabs value={authMode} onValueChange={(value) => setAuthMode(value as "login" | "signup")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Create Account</TabsTrigger>
-            </TabsList>
-            <TabsContent value="login">
-              <LoginForm />
-            </TabsContent>
-            <TabsContent value="signup">
-              <SignUpForm />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    )
+  if (user) {
+    return null // Will redirect via useEffect
   }
 
-  // Show main application
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="text-6xl mb-4">🍽️</div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">LunchHub</h1>
+          <p className="text-gray-600">Professional lunch ordering system for modern offices</p>
+        </div>
 
-      <div className="flex-1 flex flex-col">
-        <Navbar />
-
-        <main className="flex-1 p-6 overflow-auto">
-          {user.role === "admin" ? (
-            <>
-              {activeTab === "dashboard" && <OrdersDashboard />}
-              {activeTab === "orders" && <OrdersDashboard />}
-              {activeTab === "menu" && <EnhancedMenuCreator />}
-              {activeTab === "analytics" && <AnalyticsDashboard />}
-              {activeTab === "reports" && <ComprehensiveReports />}
-              {activeTab === "users" && (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">User Management</h3>
-                  <p className="text-gray-600">Coming Soon - Comprehensive user management system</p>
-                </div>
-              )}
-              {activeTab === "departments" && (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Department Management</h3>
-                  <p className="text-gray-600">Coming Soon - Department budgets and management</p>
-                </div>
-              )}
-              {activeTab === "notifications" && (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Notifications</h3>
-                  <p className="text-gray-600">Coming Soon - Real-time notification system</p>
-                </div>
-              )}
-              {activeTab === "settings" && (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Settings</h3>
-                  <p className="text-gray-600">Coming Soon - System configuration and preferences</p>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {activeTab === "menu" && <MenuViewer />}
-              {activeTab === "orders" && <MyOrders />}
-              {activeTab === "profile" && (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Profile Settings</h3>
-                  <p className="text-gray-600">Coming Soon - Manage your profile and preferences</p>
-                </div>
-              )}
-              {activeTab === "notifications" && (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Notifications</h3>
-                  <p className="text-gray-600">Coming Soon - View your notifications and alerts</p>
-                </div>
-              )}
-            </>
-          )}
-        </main>
+        <Tabs value={authMode} onValueChange={(value) => setAuthMode(value as "login" | "signup")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Sign In</TabsTrigger>
+            <TabsTrigger value="signup">Create Account</TabsTrigger>
+          </TabsList>
+          <TabsContent value="login">
+            <LoginForm />
+          </TabsContent>
+          <TabsContent value="signup">
+            <SignUpForm />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
