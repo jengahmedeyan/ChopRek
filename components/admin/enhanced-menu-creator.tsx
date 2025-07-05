@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,19 +10,56 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { collection, addDoc, query, getDocs, updateDoc, doc, deleteDoc } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
 import type { Menu, MenuOption } from "@/lib/types"
 import { format } from "date-fns"
-import { Plus, Trash2, Save, Eye, EyeOff, Calendar, Clock, UtensilsCrossed, ImageIcon, Loader2 } from "lucide-react"
+import {
+  Plus,
+  Trash2,
+  Save,
+  Eye,
+  EyeOff,
+  Calendar,
+  Clock,
+  UtensilsCrossed,
+  ImageIcon,
+  Loader2,
+  Edit,
+  Copy,
+  BookOpen,
+  Star,
+} from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+
+interface MenuTemplate {
+  id: string
+  name: string
+  description: string
+  options: MenuOption[]
+  createdAt: Date
+  createdBy: string
+}
 
 export function EnhancedMenuCreator() {
   const { user } = useAuth()
   const [menus, setMenus] = useState<Menu[]>([])
+  const [templates, setTemplates] = useState<MenuTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [templateName, setTemplateName] = useState("")
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("")
 
   const [menuForm, setMenuForm] = useState({
     title: "",
@@ -48,45 +84,205 @@ export function EnhancedMenuCreator() {
 
   useEffect(() => {
     if (!user || user.role !== "admin") return
+    loadMenusAndTemplates()
+  }, [user])
 
-    const loadMenus = async () => {
-      try {
-        const db = await getDb()
-        const menusQuery = query(collection(db, "menus"))
-        const snapshot = await getDocs(menusQuery)
+  const loadMenusAndTemplates = async () => {
+    try {
+      const db = await getDb()
 
-        const menusData = snapshot.docs.map((doc) => {
-          const data = doc.data()
-          return {
-            id: doc.id,
-            title: data.title || "Untitled",
-            description: data.description || "",
-            date: data.date || new Date().toISOString().split("T")[0],
-            cutoffTime: data.cutoffTime || "14:00",
-            options: data.options || [],
-            isPublished: data.isPublished ?? false,
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : undefined,
-            createdBy: data.createdBy || "",
-            imageUrl: data.imageUrl || "",
-          }
-        }) as Menu[]
+      const menusQuery = query(collection(db, "menus"))
+      const menusSnapshot = await getDocs(menusQuery)
+      const menusData = menusSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          title: data.title || "Untitled",
+          description: data.description || "",
+          date: data.date || new Date().toISOString().split("T")[0],
+          cutoffTime: data.cutoffTime || "14:00",
+          options: data.options || [],
+          isPublished: data.isPublished ?? false,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : undefined,
+          createdBy: data.createdBy || "",
+          imageUrl: data.imageUrl || "",
+        }
+      }) as Menu[]
 
-        setMenus(menusData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
-        setLoading(false)
-      } catch (error) {
-        console.error("Error loading menus:", error)
-        setLoading(false)
-        toast({
-          title: "Error",
-          description: "Failed to load menus. Please refresh the page.",
-          variant: "destructive",
-        })
-      }
+      const templatesQuery = query(collection(db, "menuTemplates"))
+      const templatesSnapshot = await getDocs(templatesQuery)
+      const templatesData = templatesSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          name: data.name || "Untitled Template",
+          description: data.description || "",
+          options: data.options || [],
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          createdBy: data.createdBy || "",
+        }
+      }) as MenuTemplate[]
+
+      setMenus(menusData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
+      setTemplates(templatesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()))
+      setLoading(false)
+    } catch (error) {
+      console.error("Error loading data:", error)
+      setLoading(false)
+      toast({
+        title: "Error",
+        description: "Failed to load menus and templates. Please refresh the page.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const resetForm = () => {
+    setMenuForm({
+      title: "",
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+      cutoffTime: "14:00",
+      imageUrl: "",
+      isPublished: false,
+    })
+    setOptions([
+      {
+        id: "1",
+        name: "",
+        description: "",
+        dietary: "regular",
+        price: 0,
+        calories: 0,
+        allergens: [],
+      },
+    ])
+    setEditingMenu(null)
+  }
+
+  const startEditingMenu = (menu: Menu) => {
+    setEditingMenu(menu)
+    setMenuForm({
+      title: menu.title,
+      description: menu.description,
+      date: menu.date,
+      cutoffTime: menu.cutoffTime,
+      imageUrl: menu.imageUrl || "",
+      isPublished: menu.isPublished,
+    })
+    setOptions(menu.options.map((opt) => ({ ...opt })))
+  }
+
+  const cloneMenu = (menu: Menu) => {
+    setEditingMenu(null)
+    setMenuForm({
+      title: `${menu.title} (Copy)`,
+      description: menu.description,
+      date: new Date().toISOString().split("T")[0],
+      cutoffTime: menu.cutoffTime,
+      imageUrl: menu.imageUrl || "",
+      isPublished: false,
+    })
+    setOptions(menu.options.map((opt) => ({ ...opt, id: Date.now().toString() + Math.random() })))
+
+    toast({
+      title: "Menu Cloned",
+      description: "Menu has been cloned. Update the details and save.",
+    })
+  }
+
+  const loadTemplate = (templateId: string) => {
+    const template = templates.find((t) => t.id === templateId)
+    if (!template) return
+
+    setMenuForm({
+      title: template.name,
+      description: template.description,
+      date: new Date().toISOString().split("T")[0],
+      cutoffTime: "14:00",
+      imageUrl: "",
+      isPublished: false,
+    })
+    setOptions(template.options.map((opt) => ({ ...opt, id: Date.now().toString() + Math.random() })))
+    setSelectedTemplate("")
+
+    toast({
+      title: "Template Loaded",
+      description: `Template "${template.name}" has been loaded.`,
+    })
+  }
+
+  const saveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a template name",
+        variant: "destructive",
+      })
+      return
     }
 
-    loadMenus()
-  }, [user])
+    if (options.some((opt) => !opt.name.trim())) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all meal options before saving as template",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const db = await getDb()
+      const templateData: Omit<MenuTemplate, "id"> = {
+        name: templateName,
+        description: menuForm.description,
+        options: options.filter((opt) => opt.name.trim() !== ""),
+        createdAt: new Date(),
+        createdBy: user!.uid,
+      }
+
+      await addDoc(collection(db, "menuTemplates"), templateData)
+      await loadMenusAndTemplates()
+
+      setShowTemplateDialog(false)
+      setTemplateName("")
+
+      toast({
+        title: "Template Saved",
+        description: `Template "${templateName}" has been saved successfully.`,
+      })
+    } catch (error) {
+      console.error("Error saving template:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save template. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteTemplate = async (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this template?")) return
+
+    try {
+      const db = await getDb()
+      await deleteDoc(doc(db, "menuTemplates", templateId))
+      await loadMenusAndTemplates()
+
+      toast({
+        title: "Template Deleted",
+        description: "Template has been deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting template:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete template.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const addOption = () => {
     const newOption: MenuOption = {
@@ -115,7 +311,6 @@ export function EnhancedMenuCreator() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!menuForm.title || !menuForm.description || options.some((opt) => !opt.name)) {
       toast({
         title: "Validation Error",
@@ -128,66 +323,37 @@ export function EnhancedMenuCreator() {
     setSaving(true)
     try {
       const db = await getDb()
-      const menuData: Omit<Menu, "id"> = {
+      const menuData = {
         ...menuForm,
         options: options.filter((opt) => opt.name.trim() !== ""),
-        createdAt: new Date(),
-        createdBy: user!.uid,
+        updatedAt: new Date(),
       }
 
-      await addDoc(collection(db, "menus"), menuData)
+      if (editingMenu) {
+        await updateDoc(doc(db, "menus", editingMenu.id), menuData)
+        toast({
+          title: "Menu Updated",
+          description: `Menu for ${format(new Date(menuForm.date), "MMMM dd, yyyy")} has been updated successfully`,
+        })
+      } else {
+        await addDoc(collection(db, "menus"), {
+          ...menuData,
+          createdAt: new Date(),
+          createdBy: user!.uid,
+        })
+        toast({
+          title: "Menu Created",
+          description: `Menu for ${format(new Date(menuForm.date), "MMMM dd, yyyy")} has been created successfully`,
+        })
+      }
 
-      toast({
-        title: "Menu Created",
-        description: `Menu for ${format(new Date(menuForm.date), "MMMM dd, yyyy")} has been created successfully`,
-      })
-
-      // Reset form
-      setMenuForm({
-        title: "",
-        description: "",
-        date: new Date().toISOString().split("T")[0],
-        cutoffTime: "14:00",
-        imageUrl: "",
-        isPublished: false,
-      })
-      setOptions([
-        {
-          id: "1",
-          name: "",
-          description: "",
-          dietary: "regular",
-          price: 0,
-          calories: 0,
-          allergens: [],
-        },
-      ])
-
-      // Reload menus
-      const menusQuery = query(collection(db, "menus"))
-      const snapshot = await getDocs(menusQuery)
-      const menusData = snapshot.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          title: data.title || "Untitled",
-          description: data.description || "",
-          date: data.date || new Date().toISOString().split("T")[0],
-          cutoffTime: data.cutoffTime || "11:00",
-          options: data.options || [],
-          isPublished: data.isPublished ?? false,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : undefined,
-          createdBy: data.createdBy || "",
-          imageUrl: data.imageUrl || "",
-        }
-      }) as Menu[]
-      setMenus(menusData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
+      resetForm()
+      await loadMenusAndTemplates()
     } catch (error) {
-      console.error("Error creating menu:", error)
+      console.error("Error saving menu:", error)
       toast({
         title: "Error",
-        description: "Failed to create menu. Please try again.",
+        description: "Failed to save menu. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -202,13 +368,11 @@ export function EnhancedMenuCreator() {
         isPublished: !currentStatus,
         updatedAt: new Date(),
       })
-
       setMenus(
         menus.map((menu) =>
           menu.id === menuId ? { ...menu, isPublished: !currentStatus, updatedAt: new Date() } : menu,
         ),
       )
-
       toast({
         title: currentStatus ? "Menu Unpublished" : "Menu Published",
         description: `Menu has been ${currentStatus ? "unpublished" : "published"} successfully`,
@@ -232,7 +396,6 @@ export function EnhancedMenuCreator() {
       const db = await getDb()
       await deleteDoc(doc(db, "menus", menuId))
       setMenus(menus.filter((menu) => menu.id !== menuId))
-
       toast({
         title: "Menu Deleted",
         description: "Menu has been deleted successfully",
@@ -258,17 +421,123 @@ export function EnhancedMenuCreator() {
 
   return (
     <div className="space-y-6">
-      {/* Create New Menu */}
+      {templates.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Menu Templates
+            </CardTitle>
+            <CardDescription>Quick start with saved menu templates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3 mb-4">
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  className="relative group flex items-center gap-2 p-3 border rounded-lg hover:shadow-md transition-all duration-200 min-w-[200px]"
+                >
+                  {/* Delete button - only visible on hover */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteTemplate(template.id)}
+                    className="absolute -top-2 -right-2 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{template.name}</p>
+                    <p className="text-xs text-gray-500">{template.options.length} options</p>
+                  </div>
+
+                  <Button variant="outline" size="sm" onClick={() => loadTemplate(template.id)} className="shrink-0">
+                    Use
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Create/Edit Menu */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UtensilsCrossed className="h-5 w-5" />
-            Create New Menu
+            {editingMenu ? "Edit Menu" : "Create New Menu"}
           </CardTitle>
-          <CardDescription>Design and publish daily lunch menus for your team</CardDescription>
+          <CardDescription>
+            {editingMenu ? "Update your existing menu" : "Design and publish daily lunch menus for your team"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Template and Actions Bar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Load from template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedTemplate && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => loadTemplate(selectedTemplate)}>
+                    Load Template
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {editingMenu && (
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel Edit
+                  </Button>
+                )}
+                <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" size="sm">
+                      <Star className="h-4 w-4 mr-2" />
+                      Save as Template
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Save as Template</DialogTitle>
+                      <DialogDescription>Save this menu configuration as a reusable template</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="templateName">Template Name</Label>
+                        <Input
+                          id="templateName"
+                          placeholder="e.g., Weekly Special Menu"
+                          value={templateName}
+                          onChange={(e) => setTemplateName(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setShowTemplateDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="button" onClick={saveAsTemplate}>
+                          Save Template
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -281,7 +550,6 @@ export function EnhancedMenuCreator() {
                   required
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
                 <div className="relative">
@@ -325,7 +593,6 @@ export function EnhancedMenuCreator() {
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="imageUrl">Menu Image URL (Optional)</Label>
                 <div className="relative">
@@ -381,7 +648,6 @@ export function EnhancedMenuCreator() {
                           required
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label>Dietary Type</Label>
                         <Select value={option.dietary} onValueChange={(value) => updateOption(index, "dietary", value)}>
@@ -421,7 +687,6 @@ export function EnhancedMenuCreator() {
                           onChange={(e) => updateOption(index, "price", Number.parseFloat(e.target.value) || 0)}
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label>Calories</Label>
                         <Input
@@ -432,7 +697,6 @@ export function EnhancedMenuCreator() {
                           onChange={(e) => updateOption(index, "calories", Number.parseInt(e.target.value) || 0)}
                         />
                       </div>
-
                       <div className="space-y-2">
                         <Label>Allergens</Label>
                         <Input
@@ -467,14 +731,15 @@ export function EnhancedMenuCreator() {
                 />
                 <Label htmlFor="isPublished">Publish immediately</Label>
               </div>
-
               <Button type="submit" disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
+                    {editingMenu ? "Updating..." : "Creating..."}
                   </>
+                ) : editingMenu ? (
+                  "Update Menu"
                 ) : (
                   "Create Menu"
                 )}
@@ -509,15 +774,34 @@ export function EnhancedMenuCreator() {
                           {menu.isPublished ? "Published" : "Draft"}
                         </Badge>
                         <Badge variant="outline">{format(new Date(menu.date), "MMM dd, yyyy")}</Badge>
+                        {editingMenu?.id === menu.id && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                            Editing
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{menu.description}</p>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span>{menu.options.length} options</span>
                         <span>Cutoff: {menu.cutoffTime}</span>
                         <span>Created: {format(menu.createdAt, "MMM dd, HH:mm")}</span>
+                        {/* {menu.updatedAt && <span>Updated: {format(menu.updatedAt, "MMM dd, HH:mm")}</span>} */}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startEditingMenu(menu)}
+                        disabled={editingMenu?.id === menu.id}
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => cloneMenu(menu)}>
+                        <Copy className="h-4 w-4" />
+                        Clone
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
