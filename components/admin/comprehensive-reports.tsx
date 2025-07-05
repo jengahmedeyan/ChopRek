@@ -42,6 +42,7 @@ export function ComprehensiveReports() {
   const [selectedDepartment, setSelectedDepartment] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
+  const [orderTypeFilter, setOrderTypeFilter] = useState<string>("all")
 
   useEffect(() => {
     generateReport()
@@ -51,7 +52,7 @@ export function ComprehensiveReports() {
     if (reportData) {
       filterOrders()
     }
-  }, [reportData, searchTerm])
+  }, [reportData, searchTerm, orderTypeFilter])
 
   const generateReport = async () => {
     setLoading(true)
@@ -168,18 +169,19 @@ export function ComprehensiveReports() {
 
   const filterOrders = () => {
     if (!reportData) return
-
     let filtered = reportData.orders
-
+    if (orderTypeFilter !== "all") {
+      filtered = filtered.filter(order => order.type === orderTypeFilter)
+    }
     if (searchTerm) {
       filtered = filtered.filter(
         (order) =>
-          order.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (order.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
+          (order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
+          (order.guestName?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
           order.selectedOption.name.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
-
     setFilteredOrders(filtered)
   }
 
@@ -251,7 +253,7 @@ export function ComprehensiveReports() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <Label>Report Type</Label>
               <Select value={reportType} onValueChange={setReportType}>
@@ -291,6 +293,20 @@ export function ComprehensiveReports() {
             </div>
 
             <div className="space-y-2">
+              <Label>Order Type</Label>
+              <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="user">User Orders</SelectItem>
+                  <SelectItem value="guest">Guest Orders</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Search</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -311,6 +327,7 @@ export function ComprehensiveReports() {
           <TabsList>
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="orders">Order Details</TabsTrigger>
+            <TabsTrigger value="guestOrders">Guest Orders</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
           </TabsList>
@@ -460,6 +477,45 @@ export function ComprehensiveReports() {
                             {order.status}
                           </Badge>
                         </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="guestOrders" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Guest Orders</CardTitle>
+                <CardDescription>Orders placed for guests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Guest Name</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Meal Option</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reportData.orders.filter(order => order.type === "guest").map(order => (
+                      <TableRow key={order.id}>
+                        <TableCell>{order.id}</TableCell>
+                        <TableCell>{String(normalizeDate(order.createdAt, "yyyy-MM-dd HH:mm"))}</TableCell>
+                        <TableCell>{order.guestName}</TableCell>
+                        <TableCell>{order.guestReason}</TableCell>
+                        <TableCell>{order.selectedOption.name}</TableCell>
+                        <TableCell>{order.quantity}</TableCell>
+                        <TableCell>{order.totalPrice}</TableCell>
+                        <TableCell>{order.status}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

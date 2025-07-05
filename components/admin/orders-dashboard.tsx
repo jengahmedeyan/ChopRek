@@ -7,15 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { collection, query, where, onSnapshot, updateDoc, doc } from "firebase/firestore"
+import { collection, query, where, onSnapshot, updateDoc, doc, getDocs, addDoc } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
-import type { Order } from "@/lib/types"
+import type { Order, Menu, MenuOption } from "@/lib/types"
 import { format } from "date-fns"
 import { Search, Download, RefreshCw, Clock, CheckCircle, AlertCircle, Package, Loader2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { normalizeDate } from "@/utils/date"
 import { createNotification, createOrderStatusNotification } from "@/services/notifications"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 export function OrdersDashboard() {
   const { user } = useAuth()
@@ -25,6 +27,13 @@ export function OrdersDashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [departmentFilter, setDepartmentFilter] = useState<string>("all")
+  const [guestOrderOpen, setGuestOrderOpen] = useState(false)
+  const [guestName, setGuestName] = useState("")
+  const [guestReason, setGuestReason] = useState("")
+  const [menuOptions, setMenuOptions] = useState<MenuOption[]>([])
+  const [selectedMenuOption, setSelectedMenuOption] = useState<string>("")
+  const [menuId, setMenuId] = useState<string>("")
+  const [guestOrderLoading, setGuestOrderLoading] = useState(false)
 
   useEffect(() => {
     if (!user || user.role !== "admin") return
@@ -70,9 +79,9 @@ export function OrdersDashboard() {
     if (searchTerm) {
       filtered = filtered.filter(
         (order) =>
-          order.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.selectedOption.name.toLowerCase().includes(searchTerm.toLowerCase()),
+          (order.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+          (order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+          (order.selectedOption?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false),
       )
     }
 
@@ -147,6 +156,66 @@ export function OrdersDashboard() {
 
   const departments = Array.from(new Set(orders.map((order) => order.userDepartment).filter(Boolean)))
 
+  useEffect(() => {
+    if (!guestOrderOpen) return
+    const fetchMenu = async () => {
+      setGuestOrderLoading(true)
+      try {
+        const db = await getDb()
+        const today = new Date().toISOString().split("T")[0]
+        const menuQuery = query(collection(db, "menus"), where("date", "==", today), where("isPublished", "==", true))
+        const menuSnapshot = await getDocs(menuQuery)
+        if (!menuSnapshot.empty) {
+          const menuData = menuSnapshot.docs[0].data() as Menu
+          setMenuOptions(menuData.options)
+          setMenuId(menuSnapshot.docs[0].id)
+        } else {
+          setMenuOptions([])
+          setMenuId("")
+        }
+      } catch (e) {
+        setMenuOptions([])
+        setMenuId("")
+      } finally {
+        setGuestOrderLoading(false)
+      }
+    }
+    fetchMenu()
+  }, [guestOrderOpen])
+
+  const handleGuestOrderSubmit = async () => {
+    if (!guestName || !selectedMenuOption || !menuId) return
+    setGuestOrderLoading(true)
+    try {
+      const db = await getDb()
+      const selectedOption = menuOptions.find(opt => opt.id === selectedMenuOption)
+      if (!selectedOption) return
+      const order = {
+        type: "guest",
+        guestName,
+        guestReason,
+        menuId,
+        selectedOption,
+        quantity: 1,
+        orderDate: new Date().toISOString().split("T")[0],
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        totalPrice: selectedOption.price || 0,
+      }
+      await addDoc(collection(db, "orders"), order)
+      toast({ title: "Guest Order Placed", description: `Order for ${guestName} placed successfully!` })
+      setGuestOrderOpen(false)
+      setGuestName("")
+      setGuestReason("")
+      setSelectedMenuOption("")
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to place guest order.", variant: "destructive" })
+    } finally {
+      setGuestOrderLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -158,6 +227,42 @@ export function OrdersDashboard() {
 
   return (
     <div className="space-y-6">
+      <Button onClick={() => setGuestOrderOpen(true)} className="mb-4">Place Guest Order</Button>
+      <Dialog open={guestOrderOpen} onOpenChange={setGuestOrderOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Place Guest Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="guestName">Guest Name</Label>
+              <Input id="guestName" value={guestName} onChange={e => setGuestName(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="guestReason">Reason (optional)</Label>
+              <Input id="guestReason" value={guestReason} onChange={e => setGuestReason(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="menuOption">Menu Item</Label>
+              <Select value={selectedMenuOption} onValueChange={setSelectedMenuOption}>
+                <SelectTrigger id="menuOption">
+                  <SelectValue placeholder={guestOrderLoading ? "Loading..." : "Select menu item"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {menuOptions.map(option => (
+                    <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleGuestOrderSubmit} disabled={guestOrderLoading || !guestName || !selectedMenuOption}>
+              {guestOrderLoading ? "Placing..." : "Place Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -248,8 +353,6 @@ export function OrdersDashboard() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="preparing">Preparing</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>

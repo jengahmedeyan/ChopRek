@@ -134,7 +134,10 @@ export function MenuViewer() {
         const adminSnapshot = await getDocs(adminUsersQuery)
 
         const adminNotifications = adminSnapshot.docs.map((adminDoc) =>
-          createNewOrderNotification({ ...orderData, id: orderRef.id }, adminDoc.id),
+          createNewOrderNotification({
+            ...orderData, id: orderRef.id,
+            type: "user"
+          }, adminDoc.id),
         )
 
         if (adminNotifications.length > 0) {

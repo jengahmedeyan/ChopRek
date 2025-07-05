@@ -22,8 +22,8 @@ export interface Menu {
   id: string
   title: string
   description: string
-  date: string // YYYY-MM-DD format
-  cutoffTime: string // HH:MM format
+  date: string
+  cutoffTime: string
   options: MenuOption[]
   isPublished: boolean
   createdAt: Date
@@ -31,19 +31,22 @@ export interface Menu {
   imageUrl?: string
 }
 
-// Accepts Firestore Timestamp, Date, string, or number
 export type FirestoreDate = Date | { toDate: () => Date } | string | number
 
 export interface Order {
   id: string
-  userId: string
-  userName: string
-  userEmail: string
-  userDepartment: string
+  type: "user" | "guest"
+  // For user orders
+  userId?: string
+  userName?: string
+  userEmail?: string
+  userDepartment?: string
+  guestName?: string
+  guestReason?: string
   menuId: string
   selectedOption: MenuOption
   quantity: number
-  orderDate: string // YYYY-MM-DD format
+  orderDate: string
   status: "pending" | "confirmed" | "preparing" | "ready" | "delivered" | "cancelled"
   createdAt: FirestoreDate
   updatedAt: FirestoreDate
