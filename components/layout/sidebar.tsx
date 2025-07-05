@@ -31,11 +31,12 @@ export function Sidebar() {
   const adminMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null, path: "/admin/dashboard" },
     { id: "orders", label: "Orders", icon: ShoppingCart, badge: "3", path: "/admin/orders" },
+    { id: "OrdersForSelf", label: "Order for Self", icon: ShoppingCart, badge: null, path: "/employee/menu"},
     { id: "menu", label: "Menu Creator", icon: UtensilsCrossed, badge: null, path: "/admin/menu" },
     { id: "reports", label: "Reports", icon: FileText, badge: null, path: "/admin/reports" },
     { id: "users", label: "Users", icon: Users, badge: "New", path: "/admin/users" },
     { id: "departments", label: "Departments", icon: Building, badge: null, path: "/admin/departments" },
-    // { id: "notifications", label: "Notifications", icon: Bell, badge: "2", path: "/admin/notifications" },
+    { id: "notifications", label: "Notifications", icon: Bell, badge: "2", path: "/admin/notifications" },
     { id: "settings", label: "Settings", icon: Settings, badge: null, path: "/admin/settings" },
   ]
 

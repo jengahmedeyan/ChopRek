@@ -15,7 +15,7 @@ export default function EmployeeLayout({
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== "employee")) {
+    if (!loading && (!user || (user.role !== "employee" && user.role !== "admin"))) {
       router.push("/")
     }
   }, [user, loading, router])
@@ -31,7 +31,7 @@ export default function EmployeeLayout({
     )
   }
 
-  if (!user || user.role !== "employee") {
+  if (!user || (user.role !== "employee" && user.role !== "admin")) {
     return null
   }
 
