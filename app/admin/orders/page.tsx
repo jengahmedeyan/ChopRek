@@ -173,6 +173,12 @@ export default function OrdersDashboard() {
     )
   }
 
+  const orderBreakdown = orders.reduce<Record<string, number>>((acc, order) => {
+    const itemName = order.selectedOption?.name || "Unknown";
+    acc[itemName] = (acc[itemName] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-4 lg:space-y-6">
       {/* Header Actions */}
@@ -244,8 +250,17 @@ export default function OrdersDashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl lg:text-2xl font-bold">{orders.length}</div>
-            <p className="text-xs text-muted-foreground">Today's orders</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-xl lg:text-2xl font-bold">{orders.length}</div>
+                <p className="text-xs text-muted-foreground">Today's orders</p>
+              </div>
+              <div className="text-xs text-muted-foreground text-right ml-4">
+                {Object.entries(orderBreakdown).map(([item, count]) => (
+                  <div key={item}>{count} × {item}</div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card>
