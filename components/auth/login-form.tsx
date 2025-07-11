@@ -136,16 +136,16 @@ export function LoginForm() {
               </Button>
             </form>
 
-            <div className="relative my-6">
+            {/* <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <Separator className="w-full" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
               </div>
-            </div>
+            </div> */}
 
-            <Button
+            {/* <Button
               variant="outline"
               onClick={handleGoogleSignIn}
               className="w-full h-11 lg:h-12 text-base font-medium bg-transparent hover:bg-gray-50"
@@ -170,7 +170,7 @@ export function LoginForm() {
                 />
               </svg>
               Continue with Google
-            </Button>
+            </Button> */}
 
             <div className="text-center text-xs lg:text-sm text-gray-600 mt-4 lg:mt-6 px-2">
               <p className="leading-relaxed">
