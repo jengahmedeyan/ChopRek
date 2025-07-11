@@ -36,57 +36,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
         setError(null)
+        
+        // Check if we're online before making network requests
+        if (!navigator.onLine) {
+          console.log("Offline - skipping auth state change")
+          setLoading(false)
+          return
+        }
+
         if (firebaseUser) {
-          const db = await getDb()
-          const userDocRef = doc(db, "users", firebaseUser.uid)
-
           try {
-            const userDoc = await getDoc(userDocRef)
+            const db = await getDb()
+            const userDocRef = doc(db, "users", firebaseUser.uid)
 
-            if (userDoc.exists()) {
-              const userData = userDoc.data()
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                role: userData.role || "employee",
-                department: userData.department || "",
-                createdAt: userData.createdAt?.toDate() || new Date(),
-              })
-            } else {
-              // Create a new user document with default values
-              const newUserData = {
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                role: "employee" as const,
-                department: "",
-                createdAt: new Date(),
-              }
+            try {
+              const userDoc = await getDoc(userDocRef)
 
-              await setDoc(userDocRef, newUserData)
+              if (userDoc.exists()) {
+                const userData = userDoc.data()
+                setUser({
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  role: userData.role || "employee",
+                  department: userData.department || "",
+                  createdAt: userData.createdAt?.toDate() || new Date(),
+                })
+              } else {
+                // Create a new user document with default values
+                const newUserData = {
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  role: "employee" as const,
+                  department: "",
+                  createdAt: new Date(),
+                }
 
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                role: "employee",
-                department: "",
-                createdAt: new Date(),
-              })
-            }
-          } catch (firestoreError: any) {
-            if (firestoreError.code === "permission-denied") {
-              // If we can't read the user document, create a minimal one
-              const newUserData = {
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                role: "employee" as const,
-                department: "",
-                createdAt: new Date(),
-              }
-
-              try {
                 await setDoc(userDocRef, newUserData)
+
                 setUser({
                   uid: firebaseUser.uid,
                   email: firebaseUser.email,
@@ -95,16 +82,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   department: "",
                   createdAt: new Date(),
                 })
-              } catch (writeError) {
-                setError("Error creating user document.")
-                console.error("Error creating user document:", writeError)
+              }
+            } catch (firestoreError: any) {
+              if (firestoreError.code === "permission-denied") {
+                // If we can't read the user document, create a minimal one
+                const newUserData = {
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  role: "employee" as const,
+                  department: "",
+                  createdAt: new Date(),
+                }
+
+                try {
+                  await setDoc(userDocRef, newUserData)
+                  setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName,
+                    role: "employee",
+                    department: "",
+                    createdAt: new Date(),
+                  })
+                } catch (writeError) {
+                  setError("Error creating user document.")
+                  console.error("Error creating user document:", writeError)
+                  setUser(null)
+                }
+              } else {
+                setError("Error fetching user data.")
+                console.error("Error fetching user data:", firestoreError)
                 setUser(null)
               }
-            } else {
-              setError("Error fetching user data.")
-              console.error("Error fetching user data:", firestoreError)
-              setUser(null)
             }
+          } catch (networkError: any) {
+            // Handle network connectivity issues
+            if (networkError.code === "unavailable" || networkError.code === "network-request-failed") {
+              console.log("Network error during auth state change:", networkError)
+              // Don't set error for network issues, just set loading to false
+              setLoading(false)
+              return
+            }
+            throw networkError
           }
         } else {
           setUser(null)

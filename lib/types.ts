@@ -36,7 +36,6 @@ export type FirestoreDate = Date | { toDate: () => Date } | string | number
 export interface Order {
   id: string
   type: "user" | "guest"
-  // For user orders
   userId?: string
   userName?: string
   userEmail?: string
@@ -47,7 +46,7 @@ export interface Order {
   selectedOption: MenuOption
   quantity: number
   orderDate: string
-  status: "pending" | "confirmed" | "preparing" | "ready" | "delivered" | "cancelled"
+  status: "pending" | "confirmed" | "delivered" | "cancelled"
   createdAt: FirestoreDate
   updatedAt: FirestoreDate
   totalPrice: number

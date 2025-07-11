@@ -4,13 +4,14 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/toaster"
+import ServiceWorkerRegistration from "@/components/service-worker"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "ChopRek",
   description: "Office lunch ordering app for employees and caterers",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -21,10 +22,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            {children}
+            <Toaster />
+            <ServiceWorkerRegistration />
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

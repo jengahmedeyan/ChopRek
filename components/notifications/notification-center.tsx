@@ -7,41 +7,89 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useNotifications } from "@/hooks/use-notifications"
-import { Bell, CheckCheck, Clock, AlertCircle, Info, CheckCircle, Loader2 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
-import { cn } from "@/lib/utils"
-import type { Notification } from "@/lib/types"
+import { Bell, CheckCheck, Loader2, Trash2, X, Check } from "lucide-react"
+import { NotificationItem } from "./notification-item"
+import { toast } from "@/hooks/use-toast"
 
 export function NotificationCenter() {
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications()
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    deleteMultipleNotifications,
+  } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const getNotificationIcon = (type: Notification["type"]) => {
-    switch (type) {
-      case "success":
-      case "order_status":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "warning":
-      case "reminder":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />
-      case "error":
-        return <AlertCircle className="h-4 w-4 text-red-500" />
-      case "new_menu":
-        return <Clock className="h-4 w-4 text-blue-500" />
-      default:
-        return <Info className="h-4 w-4 text-blue-500" />
+  const handleNotificationRead = async (id: string) => {
+    await markAsRead(id)
+  }
+
+  const handleNotificationDelete = async (id: string) => {
+    try {
+      await deleteNotification(id)
+      toast({
+        title: "Notification deleted",
+        description: "The notification has been removed.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete notification. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
-  const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.read) {
-      await markAsRead(notification.id)
+  const handleSelect = (id: string, selected: boolean) => {
+    const newSelected = new Set(selectedIds)
+    if (selected) {
+      newSelected.add(id)
+    } else {
+      newSelected.delete(id)
     }
+    setSelectedIds(newSelected)
+  }
 
-    // Handle navigation if actionUrl is provided
-    if (notification.actionUrl) {
-      window.location.href = notification.actionUrl
+  const handleSelectAll = () => {
+    if (selectedIds.size === notifications.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(notifications.map((n) => n.id)))
     }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+
+    setIsDeleting(true)
+    try {
+      await deleteMultipleNotifications(Array.from(selectedIds))
+      setSelectedIds(new Set())
+      setSelectionMode(false)
+      toast({
+        title: "Notifications deleted",
+        description: `${selectedIds.size} notification(s) have been removed.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete notifications. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
   }
 
   return (
@@ -58,20 +106,74 @@ export function NotificationCenter() {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80" align="end" forceMount>
         <div className="flex items-center justify-between p-4">
-          <h4 className="font-semibold">Notifications</h4>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={markAllAsRead}
-              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <CheckCheck className="h-3 w-3 mr-1" />
-              Mark all read
-            </Button>
+          {selectionMode ? (
+            <div className="flex items-center gap-2 flex-1">
+              <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="h-auto p-1">
+                <X className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium">{selectedIds.size} selected</span>
+              <div className="flex items-center gap-1 ml-auto">
+                <Button variant="ghost" size="sm" onClick={handleSelectAll} className="h-auto p-1">
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.size === 0 || isDeleting}
+                  className="h-auto p-1 text-red-600 hover:text-red-700"
+                >
+                  {isDeleting ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h4 className="font-semibold">Notifications</h4>
+              <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectionMode(true)}
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete
+                  </Button>
+                )}
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={markAllAsRead}
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    Mark all read
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </div>
         <Separator />
+
+        {selectionMode && notifications.length > 0 && (
+          <>
+            <div className="p-2 bg-muted/30">
+              <p className="text-xs text-muted-foreground text-center">
+                Swipe left or use checkboxes to select notifications
+              </p>
+            </div>
+            <Separator />
+          </>
+        )}
+
         <ScrollArea className="h-96">
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -87,26 +189,15 @@ export function NotificationCenter() {
           ) : (
             <div className="space-y-1">
               {notifications.map((notification) => (
-                <div
+                <NotificationItem
                   key={notification.id}
-                  className={cn(
-                    "flex items-start gap-3 p-3 hover:bg-muted/50 cursor-pointer transition-colors",
-                    !notification.read && "bg-muted/30",
-                  )}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex-shrink-0 mt-0.5">{getNotificationIcon(notification.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium leading-tight">{notification.title}</p>
-                      {!notification.read && <div className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
-                    </p>
-                  </div>
-                </div>
+                  notification={notification}
+                  onRead={handleNotificationRead}
+                  onDelete={handleNotificationDelete}
+                  isSelected={selectedIds.has(notification.id)}
+                  onSelect={handleSelect}
+                  selectionMode={selectionMode}
+                />
               ))}
             </div>
           )}

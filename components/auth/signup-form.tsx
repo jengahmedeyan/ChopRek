@@ -14,7 +14,7 @@ import { Eye, EyeOff, User, Mail, Lock, Building, Briefcase, Phone, AlertCircle,
 import { toast } from "@/hooks/use-toast"
 
 export function SignUpForm() {
-  const { signUp, error, isDemo } = useAuth()
+  const {signup, error } = useAuth()
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
@@ -31,15 +31,6 @@ export function SignUpForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (isDemo) {
-      toast({
-        title: "Demo Mode",
-        description: "Sign up is not available in demo mode. Use the demo credentials to sign in.",
-        variant: "destructive",
-      })
-      return
-    }
 
     if (formData.password !== formData.confirmPassword) {
       toast({
@@ -61,7 +52,7 @@ export function SignUpForm() {
 
     setIsSubmitting(true)
     try {
-      await signUp(formData, formData.password)
+      await signup(formData.email, formData.password, formData.displayName)
       toast({
         title: "Account created!",
         description: "Your account has been created successfully.",
@@ -88,15 +79,6 @@ export function SignUpForm() {
         <CardDescription>Fill in your information to create a new account</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isDemo && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              <p className="font-medium">Demo Mode Active</p>
-              <p className="text-sm">Sign up is disabled in demo mode. Use the demo credentials to sign in.</p>
-            </AlertDescription>
-          </Alert>
-        )}
 
         {error && (
           <Alert variant="destructive">
@@ -118,7 +100,6 @@ export function SignUpForm() {
                   onChange={(e) => handleInputChange("displayName", e.target.value)}
                   className="pl-10"
                   required
-                  disabled={isDemo}
                 />
               </div>
             </div>
@@ -135,7 +116,6 @@ export function SignUpForm() {
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className="pl-10"
                   required
-                  disabled={isDemo}
                 />
               </div>
             </div>
@@ -154,7 +134,6 @@ export function SignUpForm() {
                   onChange={(e) => handleInputChange("password", e.target.value)}
                   className="pl-10 pr-10"
                   required
-                  disabled={isDemo}
                 />
                 <Button
                   type="button"
@@ -162,7 +141,6 @@ export function SignUpForm() {
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={isDemo}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -181,7 +159,6 @@ export function SignUpForm() {
                   onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                   className="pl-10 pr-10"
                   required
-                  disabled={isDemo}
                 />
                 <Button
                   type="button"
@@ -189,7 +166,6 @@ export function SignUpForm() {
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={isDemo}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -199,7 +175,7 @@ export function SignUpForm() {
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)} disabled={isDemo}>
+            <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select your role" />
               </SelectTrigger>
@@ -221,7 +197,6 @@ export function SignUpForm() {
                   value={formData.department}
                   onChange={(e) => handleInputChange("department", e.target.value)}
                   className="pl-10"
-                  disabled={isDemo}
                 />
               </div>
             </div>
@@ -236,7 +211,6 @@ export function SignUpForm() {
                   value={formData.position}
                   onChange={(e) => handleInputChange("position", e.target.value)}
                   className="pl-10"
-                  disabled={isDemo}
                 />
               </div>
             </div>
@@ -253,12 +227,11 @@ export function SignUpForm() {
                 value={formData.phoneNumber}
                 onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
                 className="pl-10"
-                disabled={isDemo}
               />
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting || isDemo}>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Creating account..." : "Create Account"}
           </Button>
         </form>

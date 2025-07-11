@@ -47,31 +47,32 @@ export function MenuViewer() {
           setLoading(false)
         })
 
-        const checkExistingOrder = async () => {
-          const orderQuery = query(
-            collection(db, "orders"),
-            where("userId", "==", user.uid),
-            where("orderDate", "==", today),
-          )
+        const orderQuery = query(
+          collection(db, "orders"),
+          where("userId", "==", user.uid),
+          where("orderDate", "==", today)
+        );
 
-          const orderSnapshot = await getDocs(orderQuery)
+        const unsubscribeOrder = onSnapshot(orderQuery, (orderSnapshot) => {
           if (!orderSnapshot.empty) {
             const orderData = {
               id: orderSnapshot.docs[0].id,
               ...orderSnapshot.docs[0].data(),
               createdAt: orderSnapshot.docs[0].data().createdAt?.toDate() || new Date(),
               updatedAt: orderSnapshot.docs[0].data().updatedAt?.toDate() || new Date(),
-            } as Order
-            setExistingOrder(orderData)
-            setSelectedOption(orderData.selectedOption.id)
+            } as Order;
+            setExistingOrder(orderData);
+            setSelectedOption(orderData.selectedOption.id);
+          } else {
+            setExistingOrder(null);
+            setSelectedOption("");
           }
-        }
-
-        await checkExistingOrder()
+        });
 
         return () => {
-          unsubscribeMenu()
-        }
+          unsubscribeMenu();
+          unsubscribeOrder();
+        };
       } catch (error) {
         console.error("Error initializing menu viewer:", error)
         setLoading(false)
@@ -129,20 +130,14 @@ export function MenuViewer() {
         })
       } else {
         const orderRef = await addDoc(collection(db, "orders"), orderData)
+        const adminId = todayMenu.createdBy
 
-        const adminUsersQuery = query(collection(db, "users"), where("role", "==", "admin"))
-        const adminSnapshot = await getDocs(adminUsersQuery)
-
-        const adminNotifications = adminSnapshot.docs.map((adminDoc) =>
-          createNewOrderNotification({
-            ...orderData, id: orderRef.id,
-            type: "user"
-          }, adminDoc.id),
+        const adminNotification = createNewOrderNotification(
+          { ...orderData, id: orderRef.id, type: "user" },
+          adminId
         )
 
-        if (adminNotifications.length > 0) {
-          await createBulkNotifications(adminNotifications)
-        }
+        await createBulkNotifications([adminNotification])        
 
         toast({
           title: "Order Placed",
@@ -203,7 +198,7 @@ export function MenuViewer() {
                 <Utensils className="h-5 w-5" />
                 {todayMenu.title}
               </CardTitle>
-              <CardDescription>{format(new Date(todayMenu.date), "EEEE, MMMM dd, yyyy")}</CardDescription>
+              <CardDescription className="mt-2">{format(new Date(todayMenu.date), "EEEE, MMMM dd, yyyy")}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -257,23 +252,9 @@ export function MenuViewer() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{option.name}</p>
-                          {option.price && (
-                            <Badge variant="outline" className="text-green-600">
-                              ${option.price.toFixed(2)}
-                            </Badge>
-                          )}
                         </div>
                         {option.description && (
                           <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
-                        )}
-                        {option.calories && <p className="text-xs text-gray-500 mt-1">{option.calories} calories</p>}
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge variant="secondary" className="capitalize">
-                          {option.dietary}
-                        </Badge>
-                        {option.allergens && option.allergens.length > 0 && (
-                          <div className="text-xs text-orange-600">Contains: {option.allergens.join(", ")}</div>
                         )}
                       </div>
                     </div>
