@@ -13,10 +13,22 @@ import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import type { Order, User } from "@/lib/types"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns"
-import { Download, FileText, TrendingUp, Users, DollarSign, Filter, Search, Mail, Printer } from "lucide-react"
-import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import { FileText, TrendingUp, Users, Wallet, Filter, Search } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 import { normalizeDate } from "@/utils/date"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import { DatePickerWithPresets } from "../ui/date-picker-with-presets"
+
+type ReportType = "standard" | "comprehensive" | "custom" | "daily" | "weekly" | "monthly"
+
+
+// Extend jsPDF type to include autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+  }
+}
 
 interface ReportData {
   orders: Order[]
@@ -31,22 +43,229 @@ interface ReportData {
   }
 }
 
+// PDF Generation Function
+const generateInvoicePDF = (
+  reportData: ReportData,
+  dateRange: DateRange | undefined,
+  logoBase64?: string
+) => {
+  const doc = new jsPDF("portrait", "mm", "a4")
+  const pageWidth = doc.internal.pageSize.width
+  const pageHeight = doc.internal.pageSize.height
+  let yPosition = 20
+
+  const margin = 20;
+  const logoWidth = 30;
+  const logoHeight = 30;
+  const logoY = yPosition - 8; // align logo with text block
+
+  // Header Section
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.text("ChopRek", margin, yPosition);
+
+  if (logoBase64) {
+    doc.addImage(
+      logoBase64,
+      "PNG",
+      pageWidth - margin - logoWidth,
+      logoY,
+      logoWidth,
+      logoHeight
+    );
+  }
+
+  yPosition += 10;
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "normal");
+  doc.text("PrimeForge Office Lunch Ordering Invoice", margin, yPosition);
+
+  // Date Range
+  yPosition += 10;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const dateRangeText =
+    dateRange?.from && dateRange?.to
+      ? `Report Period: ${format(dateRange.from, "MMM dd, yyyy")} - ${format(dateRange.to, "MMM dd, yyyy")}`
+      : `Generated on: ${format(new Date(), "MMM dd, yyyy")}`;
+  doc.text(dateRangeText, margin, yPosition);
+
+  // Horizontal line
+  yPosition += 10
+  doc.setLineWidth(0.5)
+  doc.line(20, yPosition, pageWidth - 20, yPosition)
+
+  // Summary Section
+  yPosition += 15
+  doc.setFontSize(16)
+  doc.setFont("helvetica", "bold")
+  doc.text("EXECUTIVE SUMMARY", 20, yPosition)
+
+  yPosition += 10
+  doc.setFontSize(11)
+  doc.setFont("helvetica", "normal")
+
+  // Summary boxes
+  const summaryData = [
+    ["Total Orders:", reportData.summary.totalOrders.toString()],
+    ["Total Expenses:", `D${reportData.summary.totalRevenue.toFixed(2)}`],
+    ["Unique Employees:", reportData.summary.uniqueCustomers.toString()],
+    ["Average Order Value:", `D${reportData.summary.averageOrderValue.toFixed(2)}`],
+  ]
+
+  // Create summary table
+  autoTable(doc, {
+    startY: yPosition,
+    head: [["Metric", "Value"]],
+    body: summaryData,
+    theme: "grid",
+    headStyles: {
+      fillColor: [66, 139, 202],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 60 },
+      1: { cellWidth: 40, halign: "right" },
+    },
+    margin: { left: 20, right: 20 },
+    tableWidth: 100,
+  })
+
+  yPosition = (doc as any).lastAutoTable.finalY + 15
+
+  // Top Items Section
+  if (reportData.summary.topItems.length > 0) {
+    doc.setFontSize(14)
+    doc.setFont("helvetica", "bold")
+    doc.text("TOP MENU ITEMS", 20, yPosition)
+
+    yPosition += 5
+    const topItemsData = reportData.summary.topItems
+      .slice(0, 5)
+      .map((item, index) => [(index + 1).toString(), item.name, item.count.toString(), `D${item.revenue.toFixed(2)}`])
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [["Rank", "Item Name", "Orders", "Expenses"]],
+      body: topItemsData,
+      theme: "striped",
+      headStyles: {
+        fillColor: [52, 152, 219],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      columnStyles: {
+        0: { cellWidth: 15, halign: "center" },
+        1: { cellWidth: 80 },
+        2: { cellWidth: 25, halign: "center" },
+        3: { cellWidth: 30, halign: "right" },
+      },
+      margin: { left: 20, right: 20 },
+    })
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15
+  }
+
+  // Check if we need a new page
+  if (yPosition > pageHeight - 80) {
+    doc.addPage()
+    yPosition = 20
+  }
+
+  // Order Details Section
+  doc.setFontSize(14)
+  doc.setFont("helvetica", "bold")
+  doc.text("ORDER DETAILS", 20, yPosition)
+
+  yPosition += 5
+  const orderDetailsData = reportData.orders
+    .slice(0, 50)
+    .map((order) => [
+      order.id.substring(0, 8) + "...",
+      normalizeDate(order.createdAt, "MMM dd"),
+      order.userName || order.guestName || "N/A",
+      order.selectedOption.name.length > 25
+        ? order.selectedOption.name.substring(0, 25) + "..."
+        : order.selectedOption.name,
+      order.quantity.toString(),
+      `D${(order.totalPrice || 0).toFixed(2)}`,
+    ])
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [["Order ID", "Date", "Employee", "Item", "Qty", "Price"]],
+    body: orderDetailsData.map(row => row.map(cell => typeof cell === "string" ? cell : cell.toString())),
+    theme: "striped",
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 10,
+    },
+    bodyStyles: {
+      fontSize: 9,
+    },
+    columnStyles: {
+      0: { cellWidth: 25 },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 35 },
+      3: { cellWidth: 50 },
+      4: { cellWidth: 15, halign: "center" },
+      5: { cellWidth: 25, halign: "right" },
+    },
+    margin: { left: 20, right: 20 },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+  })
+
+  // Footer
+  const totalPages = doc.internal.pages.length - 1
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setFont("helvetica", "normal")
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10)
+    doc.text("© 2025 ChopRek. All rights reserved.", 20, pageHeight - 10)
+  }
+
+  const fileName = `choprek-report-${format(new Date(), "yyyy-MM-dd")}.pdf`
+  doc.save(fileName)
+}
+
 export function ComprehensiveReports() {
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [reportType, setReportType] = useState("daily")
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 7),
-    to: new Date(),
-  })
+  const [reportType, setReportType] = useState<ReportType>("weekly")
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [selectedDepartment, setSelectedDepartment] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>("all")
+  const [logoBase64, setLogoBase64] = useState<string | undefined>(undefined)
+
+  // Local filter state for UI
+  const [pendingReportType, setPendingReportType] = useState<ReportType>("weekly")
+  const [pendingDateRange, setPendingDateRange] = useState<DateRange | undefined>(undefined)
+  const [pendingSelectedDepartment, setPendingSelectedDepartment] = useState("all")
+
+  // Load logo as base64 on mount
+  useEffect(() => {
+    fetch("/pf_logo.png")
+      .then(async (res) => {
+        const blob = await res.blob()
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setLogoBase64(reader.result as string)
+        }
+        reader.readAsDataURL(blob)
+      })
+      .catch(() => setLogoBase64(undefined))
+  }, [])
 
   useEffect(() => {
-    generateReport()
-  }, [reportType, dateRange, selectedDepartment])
+    generateReport("weekly", undefined, "all")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (reportData) {
@@ -54,15 +273,17 @@ export function ComprehensiveReports() {
     }
   }, [reportData, searchTerm, orderTypeFilter])
 
-  const generateReport = async () => {
+  const generateReport = async (overrideType?: ReportType, overrideRange?: DateRange, overrideDept?: string) => {
     setLoading(true)
     try {
       const db = await getDb()
-
       let startDate = new Date()
       let endDate = new Date()
+      const type = overrideType || pendingReportType
+      const range = overrideRange || pendingDateRange
+      const dept = overrideDept || pendingSelectedDepartment
 
-      switch (reportType) {
+      switch (type) {
         case "daily":
           startDate = new Date()
           startDate.setHours(0, 0, 0, 0)
@@ -78,9 +299,9 @@ export function ComprehensiveReports() {
           endDate = endOfMonth(new Date())
           break
         case "custom":
-          if (dateRange?.from && dateRange?.to) {
-            startDate = dateRange.from
-            endDate = dateRange.to
+          if (range?.from && range?.to) {
+            startDate = range.from
+            endDate = range.to
           }
           break
       }
@@ -98,23 +319,22 @@ export function ComprehensiveReports() {
         ...doc.data(),
       })) as Order[]
 
-      if (selectedDepartment !== "all") {
-        orders = orders.filter((order) => order.userDepartment === selectedDepartment)
+      if (dept !== "all") {
+        orders = orders.filter((order) => order.userDepartment === dept)
       }
 
-    const usersSnapshot = await getDocs(collection(db, "users"))
-    const users = usersSnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        uid: data.uid,
-        email: data.email,
-        displayName: data.displayName,
-        role: data.role,
-        createdAt: data.createdAt,
-      } as User
-    })
-
+      const usersSnapshot = await getDocs(collection(db, "users"))
+      const users = usersSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          uid: data.uid,
+          email: data.email,
+          displayName: data.displayName,
+          role: data.role,
+          createdAt: data.createdAt,
+        } as User
+      })
 
       const totalOrders = orders.length
       const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0)
@@ -131,6 +351,7 @@ export function ComprehensiveReports() {
           revenue: existing.revenue + (order.totalPrice || 0),
         })
       })
+
       const topItems = Array.from(itemStats.values())
         .sort((a, b) => b.count - a.count)
         .slice(0, 10)
@@ -146,6 +367,7 @@ export function ComprehensiveReports() {
           })
         }
       })
+
       const departmentBreakdown = Array.from(deptStats.values())
 
       setReportData({
@@ -160,6 +382,10 @@ export function ComprehensiveReports() {
           departmentBreakdown,
         },
       })
+      // Update main filter state
+      setReportType(type)
+      setDateRange(range)
+      setSelectedDepartment(dept)
     } catch (error) {
       console.error("Error generating report:", error)
     } finally {
@@ -169,54 +395,34 @@ export function ComprehensiveReports() {
 
   const filterOrders = () => {
     if (!reportData) return
+
     let filtered = reportData.orders
+
     if (orderTypeFilter !== "all") {
-      filtered = filtered.filter(order => order.type === orderTypeFilter)
+      filtered = filtered.filter((order) => order.type === orderTypeFilter)
     }
+
     if (searchTerm) {
       filtered = filtered.filter(
         (order) =>
-          (order.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
-          (order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
-          (order.guestName?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
+          order.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          "" ||
+          order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          "" ||
+          order.guestName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          "" ||
           order.selectedOption.name.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
+
     setFilteredOrders(filtered)
   }
 
   const exportToPDF = () => {
-    window.print()
-  }
-
-  const exportToCSV = () => {
     if (!reportData) return
-
-    const csvContent = [
-      ["Order ID", "Date", "Employee", "Department","Meal Option", "Quantity", "Price", "Status"],
-      ...reportData.orders.map((order) => [
-        order.id,
-        normalizeDate(order.createdAt, "yyyy-MM-dd HH:mm"),
-        order.userName,
-        order.userDepartment || "",
-        order.userEmail,
-        order.selectedOption.name,
-        order.quantity.toString(),
-        (order.totalPrice || 0).toString(),
-        order.status,
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `lunch-report-${format(new Date(), "yyyy-MM-dd")}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+    generateInvoicePDF(reportData, dateRange, logoBase64)
   }
+
 
   if (loading) {
     return (
@@ -235,12 +441,8 @@ export function ComprehensiveReports() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={exportToPDF} variant="outline" size="sm">
-            <Printer className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
-          <Button onClick={exportToCSV} variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            CSV
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
           </Button>
         </div>
       </div>
@@ -256,7 +458,7 @@ export function ComprehensiveReports() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <Label>Report Type</Label>
-              <Select value={reportType} onValueChange={setReportType}>
+              <Select value={pendingReportType} onValueChange={v => setPendingReportType(v as ReportType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -269,16 +471,16 @@ export function ComprehensiveReports() {
               </Select>
             </div>
 
-            {reportType === "custom" && (
+            {pendingReportType === "custom" && (
               <div className="space-y-2">
                 <Label>Date Range</Label>
-                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                <DatePickerWithPresets date={pendingDateRange} setDate={setPendingDateRange} />
               </div>
             )}
 
             <div className="space-y-2">
               <Label>Department</Label>
-              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+              <Select value={pendingSelectedDepartment} onValueChange={setPendingSelectedDepartment}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -306,16 +508,11 @@ export function ComprehensiveReports() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Search</Label>
+            <div className="space-y-2 flex items-end">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search orders..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+                <Button onClick={() => generateReport()} variant="default">
+                  Apply Filters
+                </Button>
               </div>
             </div>
           </div>
@@ -328,8 +525,6 @@ export function ComprehensiveReports() {
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="orders">Order Details</TabsTrigger>
             <TabsTrigger value="guestOrders">Guest Orders</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="financial">Financial</TabsTrigger>
           </TabsList>
 
           <TabsContent value="summary" className="space-y-6">
@@ -346,17 +541,17 @@ export function ComprehensiveReports() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Total Expense</CardTitle>
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${reportData.summary.totalRevenue.toFixed(2)}</div>
+                  <div className="text-2xl font-bold">D{reportData.summary.totalRevenue.toFixed(2)}</div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Unique Customers</CardTitle>
+                  <CardTitle className="text-sm font-medium">Unique Employees</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -370,7 +565,7 @@ export function ComprehensiveReports() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${reportData.summary.averageOrderValue.toFixed(2)}</div>
+                  <div className="text-2xl font-bold">D{reportData.summary.averageOrderValue.toFixed(2)}</div>
                 </CardContent>
               </Card>
             </div>
@@ -394,7 +589,7 @@ export function ComprehensiveReports() {
                         </div>
                         <div className="text-right">
                           <div className="font-medium">{item.count} orders</div>
-                          <div className="text-sm text-muted-foreground">${item.revenue.toFixed(2)}</div>
+                          <div className="text-sm text-muted-foreground">D{item.revenue.toFixed(2)}</div>
                         </div>
                       </div>
                     ))}
@@ -416,9 +611,9 @@ export function ComprehensiveReports() {
                           <div className="text-sm text-muted-foreground">{dept.orders} orders</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-medium">${dept.revenue.toFixed(2)}</div>
+                          <div className="font-medium">D{dept.revenue.toFixed(2)}</div>
                           <div className="text-sm text-muted-foreground">
-                            ${(dept.revenue / dept.orders).toFixed(2)} avg
+                            D{(dept.revenue / dept.orders).toFixed(2)} avg
                           </div>
                         </div>
                       </div>
@@ -463,7 +658,7 @@ export function ComprehensiveReports() {
                         </TableCell>
                         <TableCell>{order.selectedOption.name}</TableCell>
                         <TableCell>{order.quantity}</TableCell>
-                        <TableCell>${(order.totalPrice || 0).toFixed(2)}</TableCell>
+                        <TableCell>D{(order.totalPrice || 0).toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
@@ -506,18 +701,20 @@ export function ComprehensiveReports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportData.orders.filter(order => order.type === "guest").map(order => (
-                      <TableRow key={order.id}>
-                        <TableCell>{order.id}</TableCell>
-                        <TableCell>{String(normalizeDate(order.createdAt, "yyyy-MM-dd HH:mm"))}</TableCell>
-                        <TableCell>{order.guestName}</TableCell>
-                        <TableCell>{order.guestReason}</TableCell>
-                        <TableCell>{order.selectedOption.name}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>{order.totalPrice}</TableCell>
-                        <TableCell>{order.status}</TableCell>
-                      </TableRow>
-                    ))}
+                    {reportData.orders
+                      .filter((order) => order.type === "guest")
+                      .map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell>{order.id}</TableCell>
+                          <TableCell>{String(normalizeDate(order.createdAt, "yyyy-MM-dd HH:mm"))}</TableCell>
+                          <TableCell>{order.guestName}</TableCell>
+                          <TableCell>{order.guestReason}</TableCell>
+                          <TableCell>{order.selectedOption.name}</TableCell>
+                          <TableCell>{order.quantity}</TableCell>
+                          <TableCell>{order.totalPrice}</TableCell>
+                          <TableCell>{order.status}</TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </CardContent>

@@ -1,82 +1,78 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import {
-  subscribeToUserNotifications,
-  markAllAsRead as markAllAsReadFn,
-  markAsRead as markAsReadFn,
-} from "@/services/notifications"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { subscribeToUserNotifications, markAsRead, markAllAsRead, deleteNotification } from "@/services/notifications"
+import { writeBatch, doc } from "firebase/firestore"
+import { getDb } from "@/lib/firebase-config"
 import type { Notification } from "@/lib/types"
-import { toast } from "@/hooks/use-toast"
 
 export function useNotifications() {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const previousNotificationsRef = useRef<Notification[]>([])
 
   useEffect(() => {
     if (!user) {
       setNotifications([])
-      setUnreadCount(0)
       setLoading(false)
       return
     }
 
-    let unsubscribe: (() => void) | null = null
-
-    const setupNotificationListener = async () => {
-      try {
-        unsubscribe = await subscribeToUserNotifications(user.uid, (newNotifications) => {
-          const previousNotifications = previousNotificationsRef.current
-          setNotifications(newNotifications)
-          setUnreadCount(newNotifications.filter((n) => !n.read).length)
-          setLoading(false)
-
-          // Show toast for new notifications (only after initial load)
-          if (previousNotifications.length > 0) {
-            const newNotifs = newNotifications.filter(
-              (newNotif) => !previousNotifications.some((oldNotif) => oldNotif.id === newNotif.id),
-            )
-
-            newNotifs.forEach((notification) => {
-              if (!notification.read) {
-                toast({
-                  title: notification.title,
-                  description: notification.message,
-                  variant: notification.type === "error" ? "destructive" : "default",
-                })
-              }
-            })
-          }
-
-          // Update the ref for next comparison
-          previousNotificationsRef.current = newNotifications
-        })
-      } catch (error) {
-        console.error("Error setting up notification listener:", error)
-        setLoading(false)
-      }
-    }
-
-    setupNotificationListener()
+    const unsubscribePromise = subscribeToUserNotifications(user.uid, (notifications) => {
+      setNotifications(notifications)
+      setLoading(false)
+    })
 
     return () => {
-      if (unsubscribe) {
-        unsubscribe()
-      }
+      unsubscribePromise.then((unsubscribe) => unsubscribe())
     }
   }, [user])
 
-  const markAsRead = async (notificationId: string) => {
-    await markAsReadFn(notificationId)
+  const unreadCount = notifications.filter((n) => !n.read).length
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await markAsRead(notificationId)
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+      throw error
+    }
   }
 
-  const markAllAsRead = async () => {
-    if (user) {
-      await markAllAsReadFn(user.uid)
+  const handleMarkAllAsRead = async () => {
+    try {
+      if (!user) return
+      await markAllAsRead(user.uid)
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error)
+      throw error
+    }
+  }
+
+  const handleDeleteNotification = async (notificationId: string) => {
+    try {
+      await deleteNotification(notificationId)
+    } catch (error) {
+      console.error("Error deleting notification:", error)
+      throw error
+    }
+  }
+
+  const deleteMultipleNotifications = async (notificationIds: string[]) => {
+    try {
+      const db = await getDb()
+      const batch = writeBatch(db)
+
+      notificationIds.forEach((id) => {
+        const notificationRef = doc(db, "notifications", id)
+        batch.delete(notificationRef)
+      })
+
+      await batch.commit()
+    } catch (error) {
+      console.error("Error deleting multiple notifications:", error)
+      throw error
     }
   }
 
@@ -84,7 +80,9 @@ export function useNotifications() {
     notifications,
     unreadCount,
     loading,
-    markAsRead,
-    markAllAsRead,
+    markAsRead: handleMarkAsRead,
+    markAllAsRead: handleMarkAllAsRead,
+    deleteNotification: handleDeleteNotification,
+    deleteMultipleNotifications,
   }
 }

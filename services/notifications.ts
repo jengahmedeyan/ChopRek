@@ -9,6 +9,7 @@ import {
   doc,
   writeBatch,
   getDocs,
+  deleteDoc,
 } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import type { Notification, Order, Menu } from "@/lib/types"
@@ -116,6 +117,15 @@ export async function markAllAsRead(userId: string) {
   }
 }
 
+export async function deleteNotification(notificationId: string) {
+  try {
+    const db = await getDatabase()
+    await deleteDoc(doc(db, "notifications", notificationId))
+  } catch (error) {
+    console.error("Error deleting notification:", error)
+  }
+}
+
 // Notification templates
 export function createOrderStatusNotification(
   order: Order,
@@ -124,14 +134,12 @@ export function createOrderStatusNotification(
   const statusMessages = {
     pending: "Your order has been received and is pending confirmation.",
     confirmed: "Your order has been confirmed and is being prepared.",
-    preparing: "Your order is currently being prepared.",
-    ready: "Your order is ready for pickup!",
     delivered: "Your order has been delivered.",
     cancelled: "Your order has been cancelled.",
   }
 
   return {
-    userId: order.userId,
+    userId: order.userId ?? "guest",
     title: `Order ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
     message: `${order.selectedOption.name} - ${statusMessages[newStatus]}`,
     type: "order_status",

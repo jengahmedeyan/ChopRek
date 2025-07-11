@@ -12,12 +12,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { NotificationCenter } from "@/components/notifications/notification-center"
+import { MobileSidebar } from "@/components/layout/sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { LogOut, Settings, User } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
 
 export function Navbar() {
   const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = async () => {
     try {
@@ -38,18 +42,33 @@ export function Navbar() {
   if (!user) return null
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div>
+          <MobileSidebar />
+
+          <div className="hidden sm:block">
             <h1 className="text-xl font-semibold text-gray-900">
               {user.role === "admin" ? "Admin Dashboard" : "Employee Portal"}
             </h1>
             <p className="text-sm text-gray-500">Welcome back, {user.displayName || user.email?.split("@")[0]}</p>
           </div>
+
+          <div className="sm:hidden">
+            <h1 className="text-lg font-semibold text-gray-900">🍽️ ChopRek</h1>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 lg:space-x-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Toggle theme"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="h-8 w-8"
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
           <NotificationCenter />
 
           <DropdownMenu>
