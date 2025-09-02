@@ -5,23 +5,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { collection, query, where, onSnapshot, updateDoc, doc, getDocs, addDoc } from "firebase/firestore"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { collection, query, where, onSnapshot, updateDoc, doc, getDocs, addDoc, orderBy, limit } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
 import type { Order, Menu, MenuOption } from "@/lib/types"
-import { Download, RefreshCw, Clock, CheckCircle, Package, Loader2 } from "lucide-react"
+import { Download, RefreshCw, Clock, CheckCircle, Package, Loader2, History, Calendar, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { createNotification, createOrderStatusNotification } from "@/services/notifications"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { DataTable } from "./_components/data-table"
 import { columns } from "./_components/columns"
+import { historicalColumns } from "./_components/historical-columns"
 import OrderCard from "./_components/order-card"
 
 export default function OrdersDashboard() {
   const { user } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
+  const [allOrders, setAllOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [allOrdersLoading, setAllOrdersLoading] = useState(false)
   const [guestOrderOpen, setGuestOrderOpen] = useState(false)
   const [guestName, setGuestName] = useState("")
   const [guestReason, setGuestReason] = useState("")
@@ -30,6 +34,44 @@ export default function OrdersDashboard() {
   const [menuId, setMenuId] = useState<string>("")
   const [guestOrderLoading, setGuestOrderLoading] = useState(false)
 
+
+  const loadAllOrders = async () => {
+    if (!user || user.role !== "admin") return
+
+    setAllOrdersLoading(true)
+    try {
+      const db = await getDb()
+      const allOrdersQuery = query(
+        collection(db, "orders"),
+        orderBy("createdAt", "desc"),
+        limit(100) // Limit to last 100 orders for performance
+      )
+
+      const unsubscribe = onSnapshot(allOrdersQuery, (snapshot) => {
+        const ordersData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        })) as Order[]
+
+        setAllOrders(ordersData)
+        setAllOrdersLoading(false)
+      })
+
+      return () => {
+        unsubscribe()
+      }
+    } catch (error) {
+      console.error("Error loading all orders:", error)
+      setAllOrdersLoading(false)
+      toast({
+        title: "Error",
+        description: "Failed to load historical orders.",
+        variant: "destructive",
+      })
+    }
+  }
 
    const updateOrderStatus = async (orderId: string, newStatus: Order["status"]) => {
     try {
@@ -149,6 +191,8 @@ export default function OrdersDashboard() {
         createdAt: new Date(),
         updatedAt: new Date(),
         totalPrice: selectedOption.price || 0,
+        userId: user?.uid,
+        createdBy: user?.uid,
       }
 
       await addDoc(collection(db, "orders"), order)
@@ -157,8 +201,13 @@ export default function OrdersDashboard() {
       setGuestName("")
       setGuestReason("")
       setSelectedMenuOption("")
-    } catch (e) {
-      toast({ title: "Error", description: "Failed to place guest order.", variant: "destructive" })
+    } catch (error) {
+      console.error("Error creating guest order:", error)
+      toast({ 
+        title: "Error", 
+        description: "Failed to place guest order. Please check permissions and try again.", 
+        variant: "destructive" 
+      })
     } finally {
       setGuestOrderLoading(false)
     }
@@ -297,40 +346,173 @@ export default function OrdersDashboard() {
         </Card>
       </div>
 
-      {/* Orders Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg lg:text-xl">Today's Orders</CardTitle>
-              <CardDescription className="text-sm">Manage and track all lunch orders for today</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Mobile Orders List */}
-          <div className="lg:hidden">
-            {orders.length === 0 ? (
-              <div className="text-center py-8">
-                <Package className="h-8 w-8 mx-auto mb-2 opacity-50 text-gray-500" />
-                <p className="text-gray-500">No orders found</p>
-                <p className="text-sm text-gray-400">Orders will appear here when customers place them</p>
-              </div>
-            ) : (
-              <div>
-                {orders.map((order) => (
-                  <OrderCard key={order.id} order={order} updateOrderStatus={updateOrderStatus} />
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Orders Section with Tabs */}
+      <Tabs defaultValue="today" className="space-y-4">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="today" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Today's Orders
+          </TabsTrigger>
+          <TabsTrigger 
+            value="all" 
+            className="flex items-center gap-2"
+            onClick={() => {
+              if (allOrders.length === 0 && !allOrdersLoading) {
+                loadAllOrders()
+              }
+            }}
+          >
+            <History className="h-4 w-4" />
+            All Orders
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Desktop Data Table */}
-          <div className="hidden lg:block">
-            <DataTable columns={columns} data={orders} onUpdateOrderStatus={updateOrderStatus} />
-          </div>
-        </CardContent>
-      </Card>
+        <TabsContent value="today" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg lg:text-xl">Today's Orders</CardTitle>
+                  <CardDescription className="text-sm">Manage and track all lunch orders for today</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Mobile Orders List */}
+              <div className="lg:hidden">
+                {orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-50 text-gray-500" />
+                    <p className="text-gray-500">No orders found</p>
+                    <p className="text-sm text-gray-400">Orders will appear here when customers place them</p>
+                  </div>
+                ) : (
+                  <div>
+                    {orders.map((order) => (
+                      <OrderCard key={order.id} order={order} updateOrderStatus={updateOrderStatus} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop Data Table */}
+              <div className="hidden lg:block">
+                <DataTable columns={columns} data={orders} onUpdateOrderStatus={updateOrderStatus} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="all" className="space-y-4">
+          {/* Historical Stats Cards */}
+          {allOrders.length > 0 && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs lg:text-sm font-medium">Total Orders</CardTitle>
+                  <History className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl lg:text-2xl font-bold">{allOrders.length}</div>
+                  <p className="text-xs text-muted-foreground">Historical orders</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs lg:text-sm font-medium">Delivered</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl lg:text-2xl font-bold">
+                    {allOrders.filter((o) => o.status === "delivered").length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Successfully completed</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs lg:text-sm font-medium">Cancelled</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl lg:text-2xl font-bold">
+                    {allOrders.filter((o) => o.status === "cancelled").length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Cancelled orders</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs lg:text-sm font-medium">Total Revenue</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl lg:text-2xl font-bold">
+                    D{allOrders
+                      .filter((o) => o.status === "delivered")
+                      .reduce((sum, order) => sum + (order.totalPrice || 0), 0)
+                      .toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">From delivered orders</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg lg:text-xl">All Orders</CardTitle>
+                  <CardDescription className="text-sm">Complete order history (last 100 orders)</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export All
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={loadAllOrders}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {allOrdersLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <p className="ml-4">Loading historical orders...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Orders List */}
+                  <div className="lg:hidden">
+                    {allOrders.length === 0 ? (
+                      <div className="text-center py-8">
+                        <History className="h-8 w-8 mx-auto mb-2 opacity-50 text-gray-500" />
+                        <p className="text-gray-500">No historical orders found</p>
+                        <p className="text-sm text-gray-400">Historical orders will appear here</p>
+                      </div>
+                    ) : (
+                      <div>
+                        {allOrders.map((order) => (
+                          <OrderCard key={order.id} order={order} updateOrderStatus={updateOrderStatus} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Desktop Data Table */}
+                  <div className="hidden lg:block">
+                    <DataTable columns={historicalColumns} data={allOrders} />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
