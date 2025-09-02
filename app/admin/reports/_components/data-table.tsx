@@ -15,18 +15,26 @@ import {
 } from "@tanstack/react-table"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-import { DataTableToolbar } from "./toolbar"
-import { Order } from "@/lib/types"
 import { DataTablePagination } from "@/components/data-table/pagination"
+import { DataTableToolbar } from "./toolbar"
 
-interface DataTableProps<TData, TValue> {
+interface ReportsDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  onUpdateOrderStatus?: (orderId: string, status: Order["status"]) => void
+  searchPlaceholder?: string
+  filterableColumns?: {
+    id: string
+    title: string
+    options: { label: string; value: string }[]
+  }[]
 }
 
-export function DataTable<TData, TValue>({ columns, data, onUpdateOrderStatus }: DataTableProps<TData, TValue>) {
+export function ReportsDataTable<TData, TValue>({ 
+  columns, 
+  data, 
+  searchPlaceholder = "Search orders...",
+  filterableColumns = []
+}: ReportsDataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -43,9 +51,6 @@ export function DataTable<TData, TValue>({ columns, data, onUpdateOrderStatus }:
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    meta: {
-      updateOrderStatus: onUpdateOrderStatus,
-    },
     state: {
       sorting,
       columnFilters,
@@ -61,7 +66,11 @@ export function DataTable<TData, TValue>({ columns, data, onUpdateOrderStatus }:
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} />
+      <DataTableToolbar 
+        table={table} 
+        searchPlaceholder={searchPlaceholder}
+        filterableColumns={filterableColumns}
+      />
       <div className="rounded-md border">
         <Table>
           <TableHeader>
