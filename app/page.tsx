@@ -48,7 +48,7 @@ export default function HomePage() {
   }, [user, loading, router])
 
   const handleGetStarted = () => {
-    router.push("/auth/?tab=signup")
+    router.push("/auth/signup")
   }
 
   const handleNewsletterSignup = (e: React.FormEvent) => {
@@ -167,10 +167,10 @@ export default function HomePage() {
               </a>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" onClick={() => router.push("/auth/?tab=login")}>
+              <Button variant="ghost" onClick={() => router.push("/auth/signin")}>
                 Sign In
               </Button>
-              <Button onClick={handleGetStarted}>Get Started</Button>
+              {/* <Button onClick={handleGetStarted}>Get Started</Button> */}
             </div>
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function HomePage() {
                 ChopRek streamlines workplace lunch ordering with smart menus, real-time tracking, and powerful
                 analytics. Perfect for teams of any size.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              {/* <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 <Button size="lg" onClick={handleGetStarted} className="text-lg px-8 py-3">
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -200,7 +200,7 @@ export default function HomePage() {
                 <Button size="lg" variant="outline" onClick={() => router.push("/demo")} className="text-lg px-8 py-3">
                   View Demo
                 </Button>
-              </div>
+              </div> */}
               <div className="flex items-center gap-6 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />

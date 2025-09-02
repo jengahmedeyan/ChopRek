@@ -113,14 +113,14 @@ export default function NotFound() {
       title: "Sign In",
       description: "Access your account",
       icon: Users,
-      href: "auth/?tab=login",
+      href: "/auth/signin",
       badge: null as string | null,
     },
     {
       title: "Sign Up",
       description: "Create a new account",
       icon: UserPlus,
-      href: "auth/?tab=signup",
+      href: "/auth/signup",
       badge: null as string | null,
     },
   ]
