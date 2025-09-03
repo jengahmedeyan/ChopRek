@@ -1,10 +1,33 @@
+import { Role } from './roles';
+
 export interface User {
   uid: string
+  id: string
   email: string | null
   displayName: string | null
-  role: "admin" | "employee"
+  role: Role
   department?: string
+  departmentId?: string
+  organizationId?: string
   createdAt: Date
+  updatedAt?: Date
+  lastLoginAt?: Date
+  isActive: boolean
+  
+  sessionId?: string
+  ipAddress?: string
+  mfaEnabled?: boolean
+  mfaVerified?: boolean
+  passwordLastChanged?: Date
+  failedLoginAttempts?: number
+  lockedUntil?: Date
+  
+  phoneNumber?: string
+  avatar?: string
+  timezone?: string
+  language?: string
+  
+  metadata?: Record<string, any>
 }
 
 export interface MenuOption {
