@@ -5,12 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
-import { db } from "@/lib/firebase"
 import type { Order } from "@/lib/types"
 import { format, subDays, startOfMonth } from "date-fns"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { Download, TrendingUp, Users, Award } from "lucide-react"
 import { normalizeDate } from "@/utils/date"
+import { getDb } from "@/lib/firebase-config"
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
 
@@ -42,6 +42,7 @@ export function AnalyticsDashboard() {
           startDate = subDays(new Date(), 7)
       }
 
+      const db = await getDb()
       const ordersQuery = query(
         collection(db, "orders"),
         where("createdAt", ">=", startDate),

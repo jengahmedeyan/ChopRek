@@ -8,17 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
 import type { Order, User } from "@/lib/types"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns"
-import { FileText, TrendingUp, Users, Wallet, Filter, Search } from "lucide-react"
+import { FileText, TrendingUp, Users, Wallet, Filter, Search, Clock, CheckCircle, Package, AlertCircle } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 import { normalizeDate } from "@/utils/date"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { DatePickerWithPresets } from "../ui/date-picker-with-presets"
+import { ReportsDataTable } from "@/app/admin/reports/_components/data-table"
+import { reportGuestOrderColumns, reportOrderColumns } from "@/app/admin/reports/_components/columns"
 
 type ReportType = "standard" | "comprehensive" | "custom" | "daily" | "weekly" | "monthly"
 
@@ -523,7 +524,7 @@ export function ComprehensiveReports() {
         <Tabs defaultValue="summary" className="space-y-6">
           <TabsList>
             <TabsTrigger value="summary">Summary</TabsTrigger>
-            <TabsTrigger value="orders">Order Details</TabsTrigger>
+            <TabsTrigger value="orders">Orders Analysis</TabsTrigger>
             <TabsTrigger value="guestOrders">Guest Orders</TabsTrigger>
           </TabsList>
 
@@ -625,98 +626,181 @@ export function ComprehensiveReports() {
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-6">
+            {/* All Order Analytics Cards */}
+            {reportData.orders.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Total Orders</CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">{reportData.orders.length}</div>
+                    <p className="text-xs text-muted-foreground">In selected period</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Delivered</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      {reportData.orders.filter((o) => o.status === "delivered").length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Successfully completed</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Pending</CardTitle>
+                    <Clock className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      {reportData.orders.filter((o) => o.status === "pending").length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Revenue</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      D{reportData.orders
+                        .filter((o) => o.status === "delivered")
+                        .reduce((sum, order) => sum + (order.totalPrice || 0), 0)
+                        .toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">From delivered orders</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Order Details</CardTitle>
                 <CardDescription>
-                  Showing {filteredOrders.length} of {reportData.orders.length} orders
+                  Comprehensive view of all orders in the selected period
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Rating</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.slice(0, 50).map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>{String(normalizeDate(order.createdAt, "MMM dd, HH:mm"))}</TableCell>
-                        <TableCell>{order.userName}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {order.userDepartment || "N/A"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{order.selectedOption.name}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>D{(order.totalPrice || 0).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              order.status === "delivered"
-                                ? "default"
-                                : order.status === "cancelled"
-                                  ? "destructive"
-                                  : "secondary"
-                            }
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <ReportsDataTable
+                  columns={reportOrderColumns}
+                  data={filteredOrders}
+                  searchPlaceholder="Search by employee name..."
+                  filterableColumns={[
+                    {
+                      id: "status",
+                      title: "Status",
+                      options: [
+                        { label: "Pending", value: "pending" },
+                        { label: "Confirmed", value: "confirmed" },
+                        { label: "Delivered", value: "delivered" },
+                        { label: "Cancelled", value: "cancelled" },
+                      ],
+                    },
+                    {
+                      id: "userDepartment",
+                      title: "Department",
+                      options: [
+                        { label: "Engineering", value: "engineering" },
+                        { label: "Marketing", value: "marketing" },
+                        { label: "Sales", value: "sales" },
+                        { label: "HR", value: "hr" },
+                      ],
+                    },
+                  ]}
+                />
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="guestOrders" className="space-y-6">
+            {/* Guest Orders Analytics Cards */}
+            {reportData.orders.filter((order) => order.type === "guest").length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Guest Orders</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      {reportData.orders.filter((order) => order.type === "guest").length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">In selected period</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Delivered</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      {reportData.orders.filter((o) => o.type === "guest" && o.status === "delivered").length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Successfully completed</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Cancelled</CardTitle>
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      {reportData.orders.filter((o) => o.type === "guest" && o.status === "cancelled").length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Cancelled orders</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs lg:text-sm font-medium">Guest Revenue</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl lg:text-2xl font-bold">
+                      D{reportData.orders
+                        .filter((o) => o.type === "guest" && o.status === "delivered")
+                        .reduce((sum, order) => sum + (order.totalPrice || 0), 0)
+                        .toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">From delivered orders</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Guest Orders</CardTitle>
                 <CardDescription>Orders placed for guests</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Guest Name</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Meal Option</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData.orders
-                      .filter((order) => order.type === "guest")
-                      .map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell>{order.id}</TableCell>
-                          <TableCell>{String(normalizeDate(order.createdAt, "yyyy-MM-dd HH:mm"))}</TableCell>
-                          <TableCell>{order.guestName}</TableCell>
-                          <TableCell>{order.guestReason}</TableCell>
-                          <TableCell>{order.selectedOption.name}</TableCell>
-                          <TableCell>{order.quantity}</TableCell>
-                          <TableCell>{order.totalPrice}</TableCell>
-                          <TableCell>{order.status}</TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
+                <ReportsDataTable
+                  columns={reportGuestOrderColumns}
+                  data={reportData.orders.filter((order) => order.type === "guest")}
+                  searchPlaceholder="Search by guest name..."
+                  filterableColumns={[
+                    {
+                      id: "status",
+                      title: "Status",
+                      options: [
+                        { label: "Pending", value: "pending" },
+                        { label: "Confirmed", value: "confirmed" },
+                        { label: "Delivered", value: "delivered" },
+                        { label: "Cancelled", value: "cancelled" },
+                      ],
+                    },
+                  ]}
+                />
               </CardContent>
             </Card>
           </TabsContent>
