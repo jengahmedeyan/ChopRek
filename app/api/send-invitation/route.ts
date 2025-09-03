@@ -1,7 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Create transporter for Nodemailer
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,10 +23,9 @@ export async function POST(request: NextRequest) {
     // Generate invite URL
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/join?token=${invitation.token}`
 
-    const { data, error } = await resend.emails.send({
-    //   from: process.env.RESEND_FROM_EMAIL,
-      from: 'onboarding@resend.dev',
-      to: [invitation.email],
+    const mailOptions = {
+      from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+      to: invitation.email,
       subject: "You're invited to join our team!",
       html: `
         <!DOCTYPE html>
@@ -124,17 +132,14 @@ export async function POST(request: NextRequest) {
           </body>
         </html>
       `,
-    })
-
-    if (error) {
-      console.error("Resend error:", error)
-      return NextResponse.json({ error: "Failed to send email", details: error }, { status: 500 })
     }
 
-    console.log("Email sent successfully:", data)
-    return NextResponse.json({ success: true, data })
+    const info = await transporter.sendMail(mailOptions)
+
+    console.log("Email sent successfully:", info.messageId)
+    return NextResponse.json({ success: true, messageId: info.messageId })
   } catch (error: any) {
-    console.error("Error sending invitation:", error)
+    console.error("Email sending error:", error)
     return NextResponse.json(
       {
         error: "Failed to send invitation",
