@@ -32,6 +32,8 @@ function SidebarContent({ isMobile = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
+  if (!user) return null;
+
   const adminMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null, path: "/admin/dashboard" },
     { id: "orders", label: "Orders", icon: ShoppingCart, badge: null, path: "/admin/orders" },
@@ -155,7 +157,6 @@ function SidebarContent({ isMobile = false, onClose }: SidebarProps) {
 export function Sidebar() {
   return (
     <>
-      {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <SidebarContent />
       </div>
