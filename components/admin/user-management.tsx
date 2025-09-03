@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { User } from "@/lib/types"
+import { Role } from "@/lib/roles"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,7 +40,7 @@ export function UserManagement({ className }: UserManagementProps) {
   const [formData, setFormData] = useState({
     email: "",
     displayName: "",
-    role: "employee" as "admin" | "employee",
+    role: "employee" as Role,
     department: "",
     inviteMessage: ""
   })
