@@ -18,10 +18,12 @@ import { LogOut, Settings, User } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useTheme } from "next-themes"
 import { Moon, Sun } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export function Navbar() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
 
   const handleLogout = async () => {
     try {
@@ -30,6 +32,7 @@ export function Navbar() {
         title: "Signed out",
         description: "You have been successfully signed out.",
       })
+      router.push("/auth/signin")
     } catch (error) {
       toast({
         title: "Error",
