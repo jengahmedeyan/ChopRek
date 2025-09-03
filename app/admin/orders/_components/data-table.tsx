@@ -54,7 +54,7 @@ export function DataTable<TData, TValue>({ columns, data, onUpdateOrderStatus }:
     },
     initialState: {
       pagination: {
-        pageSize: 10,
+        pageSize: 5,
       },
     },
   })

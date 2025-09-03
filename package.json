@@ -1,5 +1,5 @@
 {
-  "name": "my-v0-project",
+  "name": "chop-rek",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -46,6 +46,7 @@
     "embla-carousel-react": "latest",
     "eslint-config-next": "^15.3.5",
     "firebase": "latest",
+    "firebase-admin": "^13.4.0",
     "input-otp": "latest",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
@@ -58,6 +59,7 @@
     "react-hook-form": "latest",
     "react-resizable-panels": "latest",
     "recharts": "latest",
+    "resend": "^4.7.0",
     "sonner": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
