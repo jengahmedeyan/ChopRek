@@ -54,7 +54,7 @@ export function MyOrdersDataTable<TData, TValue>({ columns, data }: MyOrdersData
     },
     initialState: {
       pagination: {
-        pageSize: 10,
+        pageSize: 5,
       },
     },
   })
