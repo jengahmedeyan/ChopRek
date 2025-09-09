@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Search, Edit, Trash2, Mail, Filter, Users, Download, Upload } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Mail, Filter, Users, Download, Upload, Loader2 } from "lucide-react"
 import { createUser, updateUser, subscribeToUsers, deleteUser } from "@/services/users"
 import { createInvitation, getPendingInvitations, isInvitationExpired } from "@/services/invitations"
 
@@ -30,6 +30,7 @@ export function UserManagement({ className }: UserManagementProps) {
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [departmentFilter, setDepartmentFilter] = useState<string>("all")
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+  const [isSending, setIsSending] = useState(false)
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
@@ -106,12 +107,14 @@ export function UserManagement({ className }: UserManagementProps) {
 
   const handleAddUser = async () => {
     try {
+      setIsSending(true)
       if (!formData.email || !formData.displayName) {
         toast({
           title: "Validation Error",
           description: "Email and name are required",
           variant: "destructive"
         })
+        setIsSending(false)
         return
       }
 
@@ -151,6 +154,8 @@ export function UserManagement({ className }: UserManagementProps) {
         description: "Failed to send invitation",
         variant: "destructive"
       })
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -381,9 +386,18 @@ export function UserManagement({ className }: UserManagementProps) {
                 <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddUser}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Send Invitation
+                <Button onClick={handleAddUser} disabled={isSending}>
+                  {isSending ? (
+                    <>
+                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Send Invitation
+                    </>
+                  )}
                 </Button>
               </div>
             </DialogContent>
