@@ -187,12 +187,13 @@ export default function OrdersDashboard() {
         selectedOption,
         quantity: 1,
         orderDate: new Date().toISOString().split("T")[0],
-        status: "pending",
+        status: "confirmed",
         createdAt: new Date(),
         updatedAt: new Date(),
         totalPrice: selectedOption.price || 0,
         userId: user?.uid,
         createdBy: user?.uid,
+        deliveryId: null,
       }
 
       await addDoc(collection(db, "orders"), order)
