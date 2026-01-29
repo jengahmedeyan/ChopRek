@@ -52,7 +52,7 @@
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.454.0",
-    "next": "^15.3.5",
+    "next": "15.3.8",
     "next-themes": "latest",
     "nodemailer": "^7.0.6",
     "react": "^19.1.0",
