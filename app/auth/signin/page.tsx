@@ -1,72 +1,71 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/lib/auth-context"
-import { LoginForm } from "@/components/auth/login-form"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { AlertCircle, RefreshCw } from "lucide-react"
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context";
+import { LoginForm } from "@/components/auth/login-form";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 export default function SignInPage() {
-  const { user, loading, error } = useAuth()
-  const router = useRouter()
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (user) {
       if (user.role === "admin") {
-        router.push("/admin/dashboard")
+        router.push("/admin/dashboard");
       } else {
-        router.push("/employee/menu")
+        router.push("/employee/menu");
       }
     }
-  }, [user, router])
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>{error}</span>
-              <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="ml-2">
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </div>
-      </div>
-    )
-  }
+  }, [user, router]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your lunch experience...</p>
-          <p className="mt-2 text-sm text-gray-500">This should only take a moment</p>
+          <p className="mt-2 text-sm text-gray-500">
+            This should only take a moment
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (user) {
-    return null // Will redirect via useEffect
+    return null; // Will redirect via useEffect
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4">
+      <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🍽️</div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">ChopRek</h1>
-          <p className="text-gray-600">Professional lunch ordering system for modern offices</p>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-black-600 to-black-700 shadow-lg mb-4">
+            <span className="text-3xl">🍽️</span>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">ChopRek</h1>
+          <p className="text-gray-600">Streamline your office lunch ordering</p>
         </div>
         <LoginForm />
+        <span className="text-xs mt-4 block">
+          Built with ❤️ by
+          <Link
+            href="https://www.linkedin.com/in/ahmed-eyan-jeng"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Badge
+              variant="outline"
+              className="ml-2 cursor-pointer hover:bg-blue-100"
+            >
+              Ahmed Eyan Jeng
+            </Badge>
+          </Link>
+        </span>
       </div>
     </div>
-  )
-} 
+  );
+}
