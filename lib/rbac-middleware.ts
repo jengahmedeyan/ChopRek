@@ -16,6 +16,7 @@ import {
   logRBACAction,
   ROLE_HIERARCHY 
 } from '@/lib/roles';
+import { csrfProtectionMiddleware } from '@/lib/csrf-protection';
 
 // ===== MIDDLEWARE CONFIGURATION =====
 
@@ -288,7 +289,7 @@ function validateAccess(session: UserSession | null, config: any): { allowed: bo
 export function createRBACMiddleware(config: Partial<RBACMiddlewareConfig> = {}) {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
   
-  return function middleware(request: NextRequest) {
+  return async function middleware(request: NextRequest) {
     const { pathname, search } = request.nextUrl;
     const method = request.method;
     const ipAddress = request.headers.get('x-forwarded-for') || 
@@ -377,24 +378,11 @@ export function createRBACMiddleware(config: Partial<RBACMiddlewareConfig> = {})
     }
     
     // CSRF Protection for state-changing operations
-    if (mergedConfig.security.enableCSRFProtection && 
-        ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-      const csrfToken = request.headers.get('x-csrf-token');
-      const sessionCSRF = session ? `csrf_${session.sessionId}` : null;
-      
-      if (session && csrfToken !== sessionCSRF) {
-        logMiddlewareAction(request, session, 'csrf_check', false, 'CSRF token mismatch');
-        
-        if (isAPI) {
-          return NextResponse.json(
-            { error: 'CSRF token validation failed', code: 'CSRF_ERROR' },
-            { status: 403 }
-          );
-        } else {
-          const redirectUrl = new URL(mergedConfig.redirects.forbidden, request.url);
-          redirectUrl.searchParams.set('reason', 'CSRF validation failed');
-          return NextResponse.redirect(redirectUrl);
-        }
+    if (mergedConfig.security.enableCSRFProtection) {
+      const csrfResponse = await csrfProtectionMiddleware(request);
+      if (csrfResponse) {
+        // CSRF validation failed or token needs to be set
+        return csrfResponse;
       }
     }
     

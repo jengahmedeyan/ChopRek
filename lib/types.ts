@@ -49,6 +49,7 @@ export interface Menu {
   cutoffTime: string
   options: MenuOption[]
   isPublished: boolean
+  isActive: boolean
   createdAt: Date
   createdBy: string
   imageUrl?: string
@@ -73,6 +74,14 @@ export interface Order {
   createdAt: FirestoreDate
   updatedAt: FirestoreDate
   totalPrice: number
+  deliveryId?: string
+}
+
+export interface NewOrderNotificationPayload {
+  id: string
+  userName?: string
+  selectedOptionName: string
+  orderDate: string
 }
 
 export interface Notification {
@@ -106,4 +115,59 @@ export interface Analytics {
     orders: number
     revenue: number
   }>
+}
+
+// Delivery Management Types
+export type DeliveryMethod = "motorcycle" | "taxi"
+export type DeliveryStatus = "pending" | "in_transit" | "completed"
+
+export interface DeliveryDriver {
+  id: string
+  name: string
+  phone?: string
+  isActive: boolean
+  createdAt: FirestoreDate
+}
+
+export interface Delivery {
+  id: string
+  menuId: string
+  deliveryMethod: DeliveryMethod
+  driverId?: string
+  driverName?: string
+  taxiServiceName?: string
+  orderIds: string[]
+  deliveryDate: string
+  deliveryTime: string
+  deliveryPrice: number
+  status: DeliveryStatus
+  createdAt: FirestoreDate
+  updatedAt?: FirestoreDate
+  completedAt?: FirestoreDate
+  notes?: string
+}
+
+export interface DeliveryWithOrders extends Delivery {
+  orders: Order[]
+}
+
+export interface DriverPerformance {
+  driverId: string
+  driverName: string
+  deliveriesCount: number
+  ordersCount: number
+  totalEarnings: number
+}
+
+export interface WeeklyDeliveryReport {
+  weekStart: string
+  weekEnd: string
+  totalDeliveries: number
+  totalOrdersDelivered: number
+  motorcycleCount: number
+  taxiCount: number
+  motorcycleCost: number
+  taxiCost: number
+  totalCost: number
+  driverPerformance: DriverPerformance[]
 }
