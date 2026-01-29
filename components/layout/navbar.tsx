@@ -63,7 +63,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center space-x-2 lg:space-x-4">
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             aria-label="Toggle theme"
@@ -71,7 +71,7 @@ export function Navbar() {
             className="h-8 w-8"
           >
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+          </Button> */}
           <NotificationCenter />
 
           <DropdownMenu>
@@ -108,18 +108,9 @@ export function Navbar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>Sign out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

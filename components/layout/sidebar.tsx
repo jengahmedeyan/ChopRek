@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   LogOut,
   Menu,
+  Truck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
@@ -39,13 +40,14 @@ function SidebarContent({ isMobile = false, onClose }: SidebarProps) {
     { id: "orders", label: "Orders", icon: ShoppingCart, badge: null, path: "/admin/orders" },
     { id: "OrdersForSelf", label: "Order for Self", icon: ShoppingCart, badge: null, path: "/employee/menu" },
     { id: "menu", label: "Menu Creator", icon: UtensilsCrossed, badge: null, path: "/admin/menu" },
+    { id: "delivery", label: "Delivery", icon: Truck, badge: null, path: "/admin/delivery" },
     { id: "reports", label: "Reports", icon: FileText, badge: null, path: "/admin/reports" },
     { id: "users", label: "Users", icon: Users, badge: null, path: "/admin/users" },
     { id: "settings", label: "Settings", icon: Settings, badge: null, path: "/admin/settings" },
   ]
 
   const employeeMenuItems = [
-    { id: "menu", label: "Today's Menu", icon: UtensilsCrossed, badge: null, path: "/employee/menu" },
+    { id: "menu", label: "Menus", icon: UtensilsCrossed, badge: null, path: "/employee/menu" },
     { id: "orders", label: "My Orders", icon: ShoppingCart, badge: null, path: "/employee/orders" },
   ]
 
