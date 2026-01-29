@@ -17,16 +17,19 @@ export interface AppError {
  */
 const FIREBASE_ERROR_MESSAGES: Record<string, string> = {
   // Auth errors
-  'auth/user-not-found': 'No account found with this email address.',
-  'auth/wrong-password': 'Incorrect password. Please try again.',
+  'auth/invalid-credential': 'Invalid email or password. Please check your credentials and try again.',
+  'auth/invalid-login-credentials': 'Invalid email or password. Please check your credentials and try again.',
+  'auth/user-not-found': 'Invalid email or password. Please check your credentials and try again.',
+  'auth/wrong-password': 'Invalid email or password. Please check your credentials and try again.',
   'auth/invalid-email': 'Please enter a valid email address.',
-  'auth/user-disabled': 'This account has been disabled.',
-  'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
+  'auth/user-disabled': 'This account has been disabled. Contact your administrator.',
+  'auth/too-many-requests': 'Too many failed login attempts. Please try again later or reset your password.',
   'auth/email-already-in-use': 'An account with this email already exists.',
   'auth/weak-password': 'Password should be at least 6 characters long.',
-  'auth/network-request-failed': 'Network error. Please check your connection.',
+  'auth/network-request-failed': 'Network error. Please check your internet connection and try again.',
   'auth/popup-closed-by-user': 'Sign-in popup was closed. Please try again.',
   'auth/cancelled-popup-request': 'Sign-in was cancelled.',
+  'auth/missing-password': 'Please enter your password.',
   
   // Firestore errors
   'firestore/permission-denied': 'You don\'t have permission to perform this action.',
@@ -138,12 +141,13 @@ export function handleError(error: unknown, context?: string): AppError {
  */
 export function logError(error: AppError): void {
   if (process.env.NODE_ENV === 'development') {
-    console.error('Application Error:', {
-      code: error.code,
-      message: error.message,
-      context: error.context,
-      originalError: error.originalError
-    });
+    console.error('Application Error:', error.code, '-', error.message);
+    if (error.context) {
+      console.error('Context:', error.context);
+    }
+    if (error.originalError) {
+      console.error('Original Error:', error.originalError);
+    }
   }
   
   // In production, send to monitoring service (Sentry, LogRocket, etc.)

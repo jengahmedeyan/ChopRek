@@ -22,6 +22,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   error: string | null
+  isOffline: boolean
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: () => Promise<void>
   signup: (email: string, password: string, displayName: string, department?: string) => Promise<void>
@@ -37,6 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isOffline, setIsOffline] = useState(false)
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+
+    setIsOffline(!navigator.onLine)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser: FirebaseUser | null) => {
@@ -370,6 +387,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     loading,
     error,
+    isOffline,
     login,
     loginWithGoogle,
     signup,
