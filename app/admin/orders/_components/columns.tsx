@@ -128,9 +128,9 @@ export const columns: ColumnDef<Order>[] = [
     accessorKey: "totalPrice",
     header: ({ column }) => {
       return (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="h-8 px-2">
           Price
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          <ArrowUpDown className="ml-1 h-3 w-3" />
         </Button>
       )
     },
@@ -140,7 +140,7 @@ export const columns: ColumnDef<Order>[] = [
         style: "currency",
         currency: "USD",
       }).format(amount)
-      return <div className="font-medium">D{amount.toFixed(2)}</div>
+      return <div className="font-medium text-sm">D{amount.toFixed(2)}</div>
     },
   },
   {
@@ -171,12 +171,12 @@ export const columns: ColumnDef<Order>[] = [
       const updateOrderStatus = (table.options.meta as any)?.updateOrderStatus
 
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <Select
             value={order.status}
             onValueChange={(value) => updateOrderStatus?.(order.id, value as Order["status"])}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-28 sm:w-32 h-8 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -194,7 +194,7 @@ export const columns: ColumnDef<Order>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>Copy order ID</DropdownMenuItem>
               <DropdownMenuSeparator />
