@@ -89,23 +89,23 @@ export default function MyOrders() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-6 p-2 sm:p-4 lg:p-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
         {stats.map((stat, idx) => (
           <StatCard key={stat.title} {...stat} />
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>My Orders</CardTitle>
+      <Card className="shadow-sm">
+        <CardHeader className="p-3 sm:p-4 lg:p-6">
+          <CardTitle className="text-base sm:text-lg lg:text-xl">My Orders</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
           {orders.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="h-8 w-8 mx-auto mb-2 opacity-50 text-gray-500" />
-              <p className="text-gray-500">You have not placed any orders yet</p>
-              <p className="text-sm text-gray-400">Your orders will appear here once you place them</p>
+            <div className="text-center py-8 sm:py-12">
+              <Package className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50 text-gray-500" />
+              <p className="text-sm sm:text-base text-gray-500 font-medium">You have not placed any orders yet</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">Your orders will appear here once you place them</p>
             </div>
           ) : (
             <>
