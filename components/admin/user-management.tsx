@@ -359,12 +359,34 @@ export function UserManagement({ className }: UserManagementProps) {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    placeholder="Engineering, Marketing, etc."
-                  />
+                  <Select 
+                    value={formData.department} 
+                    onValueChange={(value) => {
+                      if (value === "custom") {
+                        setFormData({ ...formData, department: "" })
+                      } else {
+                        setFormData({ ...formData, department: value })
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getUniqueDepartments().map(dept => (
+                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      ))}
+                      <SelectItem value="custom">+ Add Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.department === "" && (
+                    <Input
+                      placeholder="Enter custom department"
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="inviteMessage">Personal Message (Optional)</Label>
@@ -714,12 +736,34 @@ export function UserManagement({ className }: UserManagementProps) {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-department">Department</Label>
-              <Input
-                id="edit-department"
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                placeholder="Engineering, Marketing, etc."
-              />
+              <Select 
+                value={formData.department} 
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    setFormData({ ...formData, department: "" })
+                  } else {
+                    setFormData({ ...formData, department: value })
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getUniqueDepartments().map(dept => (
+                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  ))}
+                  <SelectItem value="custom">+ Add Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.department === "" && (
+                <Input
+                  placeholder="Enter custom department"
+                  value={formData.department}
+                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  className="mt-2"
+                />
+              )}
             </div>
           </div>
           <div className="flex justify-end space-x-2">

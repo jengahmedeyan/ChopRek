@@ -7,12 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
 import type { Order } from "@/lib/types"
 import { format, subDays, startOfMonth } from "date-fns"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts"
 import { Download, TrendingUp, Users, Award } from "lucide-react"
 import { normalizeDate } from "@/utils/date"
 import { getDb } from "@/lib/firebase-config"
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
+const COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#f97316"]
 
 export function AnalyticsDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -66,7 +66,7 @@ export function AnalyticsDashboard() {
   const getDailyStats = () => {
     const dailyStats = new Map()
     orders.forEach((order) => {
-      const date = normalizeDate(order.createdAt, "yyyy-MM-dd")
+      const date = normalizeDate(order.createdAt, "MMM dd")
       dailyStats.set(date, (dailyStats.get(date) || 0) + 1)
     })
     return Array.from(dailyStats.entries()).map(([date, orders]) => ({ date, orders }))
@@ -78,14 +78,16 @@ export function AnalyticsDashboard() {
       const mealName = order.selectedOption.name
       mealStats.set(mealName, (mealStats.get(mealName) || 0) + 1)
     })
-    return Array.from(mealStats.entries()).map(([name, value]) => ({ name, value }))
+    return Array.from(mealStats.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
   }
 
   const getEmployeeStats = () => {
     const employeeStats = new Map()
     orders.forEach((order) => {
-      const userName = order.userName
-      employeeStats.set(userName, (employeeStats.get(userName) || 0) + 1)
+      const key = (order.userName && order.userName.trim()) || (order.guestName && order.guestName.trim()) || 'Guest'
+      employeeStats.set(key, (employeeStats.get(key) || 0) + 1)
     })
     return Array.from(employeeStats.entries())
       .map(([name, count]) => ({ name, count }))
@@ -95,10 +97,10 @@ export function AnalyticsDashboard() {
 
   const exportToCSV = () => {
     const csvContent = [
-      ["Date", "Employee","Meal Option", "Dietary Type"],
+      ["Date", "Employee", "Meal Option", "Dietary Type"],
       ...orders.map((order) => [
         normalizeDate(order.createdAt, "yyyy-MM-dd"),
-        order.userName,
+        order.userName || order.guestName || 'Guest',
         order.selectedOption.name,
         order.selectedOption.dietary,
       ]),
@@ -115,8 +117,41 @@ export function AnalyticsDashboard() {
     window.URL.revokeObjectURL(url)
   }
 
+  // Custom tooltip for better styling
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+          <p className="font-semibold text-sm mb-1">{label}</p>
+          <p className="text-sm text-primary">
+            Orders: <span className="font-bold">{payload[0].value}</span>
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const CustomPieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+          <p className="font-semibold text-sm">{payload[0].name}</p>
+          <p className="text-sm text-primary">
+            Orders: <span className="font-bold">{payload[0].value}</span>
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
   if (loading) {
-    return <div>Loading analytics...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-muted-foreground">Loading analytics...</div>
+      </div>
+    )
   }
 
   const dailyStats = getDailyStats()
@@ -146,46 +181,54 @@ export function AnalyticsDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-violet-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalOrders}</div>
+            <div className="text-3xl font-bold">{totalOrders}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {timeRange === "7days" ? "Last 7 days" : timeRange === "30days" ? "Last 30 days" : "This month"}
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{uniqueEmployees}</div>
+            <div className="text-3xl font-bold">{uniqueEmployees}</div>
+            <p className="text-xs text-muted-foreground mt-1">Unique users ordering</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Orders/Day</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <Award className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               {dailyStats.length > 0 ? Math.round(totalOrders / dailyStats.length) : 0}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Daily average</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Most Popular</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <Award className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-sm font-bold">{mealStats.length > 0 ? mealStats[0].name : "N/A"}</div>
+            <div className="text-lg font-bold truncate">{mealStats.length > 0 ? mealStats[0].name : "N/A"}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {mealStats.length > 0 ? `${mealStats[0].value} orders` : "No data"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -193,45 +236,65 @@ export function AnalyticsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Daily Orders</CardTitle>
-            <CardDescription>Orders per day over time</CardDescription>
+            <CardTitle>Daily Order Trend</CardTitle>
+            <CardDescription>Track orders over time</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dailyStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="orders" fill="#8884d8" />
-              </BarChart>
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={dailyStats} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  stroke="#6b7280"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  stroke="#6b7280"
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="orders" 
+                  stroke="#8b5cf6" 
+                  strokeWidth={3}
+                  dot={{ fill: "#8b5cf6", r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Meal Preferences</CardTitle>
-            <CardDescription>Distribution of meal choices</CardDescription>
+            <CardTitle>Meal Distribution</CardTitle>
+            <CardDescription>Popular meal choices breakdown</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={350}>
               <PieChart>
                 <Pie
                   data={mealStats}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                  outerRadius={80}
+                  label={({ name, percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                  outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
+                  paddingAngle={2}
                 >
                   {mealStats.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip content={<CustomPieTooltip />} />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36}
+                  formatter={(value) => <span className="text-sm">{value}</span>}
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -240,20 +303,48 @@ export function AnalyticsDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Top Employees</CardTitle>
-          <CardDescription>Most active lunch orderers</CardDescription>
+          <CardTitle>Top 10 Most Active Employees</CardTitle>
+          <CardDescription>Employees with the most lunch orders</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {employeeStats.map(({ name, count }, index) => (
-              <div key={name} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">#{index + 1}</span>
-                  <span>{name}</span>
+          <div className="space-y-4">
+            {employeeStats.map(({ name, count }, index) => {
+              const maxCount = employeeStats[0]?.count || 1
+              const percentage = (count / maxCount) * 100
+              
+              return (
+                <div key={`${name}-${index}`} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span 
+                        className={`
+                          flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold
+                          ${index === 0 ? 'bg-yellow-500 text-white' : 
+                            index === 1 ? 'bg-gray-400 text-white' : 
+                            index === 2 ? 'bg-orange-600 text-white' : 
+                            'bg-gray-200 text-gray-700'}
+                        `}
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="font-medium">{name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-muted-foreground">{count} orders</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        index === 0 ? 'bg-yellow-500' : 
+                        index === 1 ? 'bg-gray-400' : 
+                        index === 2 ? 'bg-orange-600' : 
+                        'bg-violet-500'
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
                 </div>
-                <span className="text-sm text-muted-foreground">{count} orders</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>
