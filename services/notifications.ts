@@ -12,7 +12,7 @@ import {
   deleteDoc,
 } from "firebase/firestore"
 import { getDb } from "@/lib/firebase-config"
-import type { Notification, Order, Menu } from "@/lib/types"
+import type { Notification, Order, Menu, NewOrderNotificationPayload } from "@/lib/types"
 
 let db: any = null
 async function getDatabase() {
@@ -177,15 +177,18 @@ export function createOrderReminderNotification(menu: Menu, userId: string): Omi
   }
 }
 
-export function createNewOrderNotification(order: Order, adminUserId: string): Omit<Notification, "id" | "createdAt"> {
+export function createNewOrderNotification(
+  payload: NewOrderNotificationPayload,
+  adminUserId: string
+): Omit<Notification, "id" | "createdAt"> {
   return {
     userId: adminUserId,
     title: "New Order Received",
-    message: `${order.userName} ordered ${order.selectedOption.name} for ${order.orderDate}`,
+    message: `${payload.userName ?? 'A user'} ordered ${payload.selectedOptionName} for ${payload.orderDate}`,
     type: "info",
     read: false,
     metadata: {
-      orderId: order.id,
+      orderId: payload.id,
     },
   }
 }
