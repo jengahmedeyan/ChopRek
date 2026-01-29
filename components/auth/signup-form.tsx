@@ -10,59 +10,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
-import { Eye, EyeOff, User, Mail, Lock, Building, Briefcase, Phone, AlertCircle, Info } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { Eye, EyeOff, User, Mail, Lock, Briefcase, AlertCircle, Loader2 } from "lucide-react"
 
 export function SignUpForm() {
-  const {signup, error } = useAuth()
+  const { signup } = useAuth()
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: "employee" as "admin" | "employee",
     department: "",
     position: "",
-    phoneNumber: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formError, setFormError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError("")
 
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Password mismatch",
-        description: "Passwords do not match",
-        variant: "destructive",
-      })
+      setFormError("Passwords do not match")
       return
     }
 
     if (formData.password.length < 6) {
-      toast({
-        title: "Weak password",
-        description: "Password should be at least 6 characters long",
-        variant: "destructive",
-      })
+      setFormError("Password should be at least 6 characters long")
       return
     }
 
     setIsSubmitting(true)
     try {
       await signup(formData.email, formData.password, formData.displayName)
-      toast({
-        title: "Account created!",
-        description: "Your account has been created successfully.",
-      })
     } catch (error: any) {
-      toast({
-        title: "Sign up failed",
-        description: error.message,
-        variant: "destructive",
-      })
+      setFormError(error.message || "Failed to create account")
     } finally {
       setIsSubmitting(false)
     }
@@ -73,49 +56,53 @@ export function SignUpForm() {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-        <CardDescription>Fill in your information to create a new account</CardDescription>
+    <Card className="w-full shadow-xl border-0">
+      <CardHeader className="space-y-2 pb-6 text-center">
+        <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
+        <CardDescription className="text-base">
+          Join ChopRek to start ordering lunch
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="px-6 pb-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {formError && (
+            <Alert variant="destructive" className="py-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName">Full Name</Label>
+              <Label htmlFor="displayName" className="text-sm font-medium text-gray-700">Full Name</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="displayName"
-                  placeholder="Enter your full name"
+                  placeholder="John Doe"
                   value={formData.displayName}
                   onChange={(e) => handleInputChange("displayName", e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   required
+                  autoComplete="name"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email address</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="you@company.com"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   required
+                  autoComplete="email"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -123,118 +110,114 @@ export function SignUpForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium text-gray-700">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
+                  placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => handleInputChange("password", e.target.value)}
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 h-11 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   required
+                  autoComplete="new-password"
+                  disabled={isSubmitting}
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Confirm Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
+                  placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 h-11 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   required
+                  autoComplete="new-password"
+                  disabled={isSubmitting}
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  tabIndex={-1}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select your role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="employee">Employee</SelectItem>
-                <SelectItem value="admin">Administrator</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
+              <Label htmlFor="department" className="text-sm font-medium text-gray-700">Department <span className="text-gray-500">(Optional)</span></Label>
               <div className="relative">
-                <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="department"
-                  placeholder="e.g., Engineering, Marketing"
+                  placeholder="Engineering"
                   value={formData.department}
                   onChange={(e) => handleInputChange("department", e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="position">Position</Label>
+              <Label htmlFor="position" className="text-sm font-medium text-gray-700">Position <span className="text-gray-500">(Optional)</span></Label>
               <div className="relative">
-                <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   id="position"
-                  placeholder="e.g., Software Developer"
+                  placeholder="Software Developer"
                   value={formData.position}
                   onChange={(e) => handleInputChange("position", e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="phoneNumber"
-                type="tel"
-                placeholder="Enter your phone number"
-                value={formData.phoneNumber}
-                onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account..." : "Create Account"}
+          <Button
+            type="submit"
+            className="w-full h-11 text-base font-semibold  transition-colors"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              "Create account"
+            )}
           </Button>
         </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Already have an account?{" "}
+            <a href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-700">
+              Sign in
+            </a>
+          </p>
+        </div>
       </CardContent>
     </Card>
   )

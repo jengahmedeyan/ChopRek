@@ -2,14 +2,11 @@
 
 import { useAuth } from "@/lib/auth-context"
 import { SignUpForm } from "@/components/auth/signup-form"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { AlertCircle, RefreshCw } from "lucide-react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 export default function SignUpPage() {
-  const { user, loading, error } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -21,25 +18,6 @@ export default function SignUpPage() {
       }
     }
   }, [user, router])
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>{error}</span>
-              <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="ml-2">
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </div>
-      </div>
-    )
-  }
 
   if (loading) {
     return (
@@ -58,12 +36,14 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4">
+      <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🍽️</div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">ChopRek</h1>
-          <p className="text-gray-600">Professional lunch ordering system for modern offices</p>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg mb-4">
+            <span className="text-3xl">🍽️</span>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">ChopRek</h1>
+          <p className="text-gray-600">Streamline your office lunch ordering</p>
         </div>
         <SignUpForm />
       </div>
