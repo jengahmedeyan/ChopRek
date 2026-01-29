@@ -53,6 +53,20 @@ export default function DeliveryReportsPage() {
     "daily" | "weekly" | "monthly" | "custom"
   >("weekly");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [logoBase64, setLogoBase64] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/pf_logo.png")
+      .then(async (res) => {
+        const blob = await res.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoBase64(reader.result as string);
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => setLogoBase64(undefined));
+  }, []);
 
   // Set defaults based on selected report type (matches Comprehensive Reports behavior)
   useEffect(() => {
@@ -116,119 +130,160 @@ export default function DeliveryReportsPage() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!report) return;
 
-    // Import jsPDF
-    import("jspdf").then((module) => {
-      const { jsPDF } = module;
+    try {
+      const { jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+
       const doc = new jsPDF("portrait", "mm", "a4");
       const pageWidth = doc.internal.pageSize.width;
       const pageHeight = doc.internal.pageSize.height;
       let yPosition = 20;
 
-      // Header
+      const margin = 20;
+      const logoWidth = 30;
+      const logoHeight = 30;
+      const logoY = yPosition - 8;
+
+      // Header Section
       doc.setFontSize(24);
       doc.setFont("helvetica", "bold");
-      doc.text("ChopRek", 20, yPosition);
+      doc.text("ChopRek", margin, yPosition);
+
+      if (logoBase64) {
+        doc.addImage(
+          logoBase64,
+          "PNG",
+          pageWidth - margin - logoWidth,
+          logoY,
+          logoWidth,
+          logoHeight,
+        );
+      }
 
       yPosition += 10;
       doc.setFontSize(16);
-      doc.text("Delivery Driver Payment Receipt", 20, yPosition);
+      doc.setFont("helvetica", "normal");
+      doc.text("Delivery Driver Payment Receipt", margin, yPosition);
 
+      // Date Range
       yPosition += 10;
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Week: ${report.weekStart} to ${report.weekEnd}`, 20, yPosition);
+      const dateRangeText = `Report Period: ${report.weekStart} - ${report.weekEnd}`;
+      doc.text(dateRangeText, margin, yPosition);
 
-      yPosition += 5;
-      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, yPosition);
-
-      // Line separator
+      // Horizontal line
       yPosition += 10;
       doc.setLineWidth(0.5);
-      doc.line(20, yPosition, pageWidth - 20, yPosition);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
 
-      // Driver payments section
+      // Summary Section
       yPosition += 15;
-      doc.setFontSize(14);
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("Driver Payments", 20, yPosition);
+      doc.text("EXECUTIVE SUMMARY", margin, yPosition);
 
       yPosition += 10;
-      doc.setFontSize(10);
+      doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
 
-      report.driverPerformance.forEach((driver, index) => {
-        // Driver name
-        doc.setFont("helvetica", "bold");
-        doc.text(`${index + 1}. ${driver.driverName}`, 25, yPosition);
+      // Summary boxes
+      const totalPayments = report.driverPerformance.reduce(
+        (sum, d) => sum + d.totalEarnings,
+        0,
+      );
+      const summaryData = [
+        ["Total Deliveries:", report.totalDeliveries.toString()],
+        ["Total Orders Delivered:", report.totalOrdersDelivered.toString()],
+        ["Active Drivers:", report.driverPerformance.length.toString()],
+        ["Total Payments:", `D${totalPayments.toFixed(2)}`],
+      ];
 
-        yPosition += 6;
-        doc.setFont("helvetica", "normal");
-        doc.text(
-          `   Deliveries Made: ${driver.deliveriesCount}`,
-          25,
-          yPosition,
-        );
-
-        yPosition += 5;
-        doc.text(`   Orders Carried: ${driver.ordersCount}`, 25, yPosition);
-
-        yPosition += 5;
-        doc.setFont("helvetica", "bold");
-        doc.text(
-          `   Total Payment: D${driver.totalEarnings.toFixed(2)}`,
-          25,
-          yPosition,
-        );
-
-        yPosition += 10;
-        doc.setFont("helvetica", "normal");
-
-        // Add new page if needed
-        if (yPosition > 250) {
-          doc.addPage();
-          yPosition = 20;
-        }
+      // Create summary table
+      autoTable(doc, {
+        startY: yPosition,
+        head: [["Metric", "Value"]],
+        body: summaryData,
+        theme: "grid",
+        headStyles: {
+          fillColor: [66, 139, 202],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        columnStyles: {
+          0: { fontStyle: "bold", cellWidth: 60 },
+          1: { cellWidth: 40, halign: "right" },
+        },
+        margin: { left: margin, right: margin },
+        tableWidth: 100,
       });
 
-      // Summary
-      yPosition += 10;
-      doc.setLineWidth(0.5);
-      doc.line(20, yPosition, pageWidth - 20, yPosition);
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
 
-      yPosition += 10;
-      doc.setFontSize(12);
+      // Check if we need a new page
+      if (yPosition > pageHeight - 80) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Driver Performance Section
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("Week Summary", 20, yPosition);
+      doc.text("DRIVER PAYMENT DETAILS", margin, yPosition);
 
-      yPosition += 8;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Total Deliveries: ${report.totalDeliveries}`, 25, yPosition);
-
-      yPosition += 6;
-      doc.text(
-        `Total Orders Delivered: ${report.totalOrdersDelivered}`,
-        25,
-        yPosition,
+      yPosition += 5;
+      const driverDetailsData = report.driverPerformance.map(
+        (driver, index) => [
+          (index + 1).toString(),
+          driver.driverName,
+          driver.deliveriesCount.toString(),
+          driver.ordersCount.toString(),
+          `D${driver.totalEarnings.toFixed(2)}`,
+        ],
       );
 
-      yPosition += 6;
-      doc.setFont("helvetica", "bold");
-      doc.text(
-        `Total Payments: D${report.driverPerformance.reduce((sum, d) => sum + d.totalEarnings, 0).toFixed(2)}`,
-        25,
-        yPosition,
-      );
+      autoTable(doc, {
+        startY: yPosition,
+        head: [["#", "Driver Name", "Deliveries", "Orders", "Total Payment"]],
+        body: driverDetailsData,
+        theme: "striped",
+        headStyles: {
+          fillColor: [46, 125, 50],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 10,
+        },
+        bodyStyles: {
+          fontSize: 9,
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: "center" },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 30, halign: "center" },
+          3: { cellWidth: 25, halign: "center" },
+          4: { cellWidth: 35, halign: "right", fontStyle: "bold" },
+        },
+        margin: { left: margin, right: margin },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
 
       // Footer
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text("© 2025 ChopRek. All rights reserved.", 20, pageHeight - 10);
+      const totalPages = doc.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
+        doc.text(
+          "© 2025 ChopRek. All rights reserved.",
+          margin,
+          pageHeight - 10,
+        );
+      }
 
-      // Save PDF
       const fileName = `driver-receipt-${report.weekStart}-${report.weekEnd}.pdf`;
       doc.save(fileName);
 
@@ -236,7 +291,14 @@ export default function DeliveryReportsPage() {
         title: "Success",
         description: "Driver receipt exported as PDF",
       });
-    });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export PDF",
+        variant: "destructive",
+      });
+      console.error("PDF export error:", error);
+    }
   };
 
   const handleExportExcel = () => {
