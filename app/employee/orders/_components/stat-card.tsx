@@ -19,11 +19,11 @@ const StatCard: React.FC<StatCardProps> = ({
   icon,
   value,
   description,
-  titleClassName = "text-xs lg:text-sm font-medium",
-  iconClassName = "h-4 w-4 text-muted-foreground",
+  titleClassName = "text-xs sm:text-sm font-medium",
+  iconClassName = "h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground",
 }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+  <Card className="shadow-sm">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4">
       <CardTitle className={titleClassName}>{title}</CardTitle>
       {icon && React.isValidElement(icon)
         ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
@@ -31,8 +31,8 @@ const StatCard: React.FC<StatCardProps> = ({
           })
         : icon}
     </CardHeader>
-    <CardContent>
-      <div className="text-xl lg:text-2xl font-bold">{value}</div>
+    <CardContent className="p-3 sm:p-4 pt-0">
+      <div className="text-lg sm:text-xl lg:text-2xl font-bold">{value}</div>
       <p className="text-xs text-muted-foreground">{description}</p>
     </CardContent>
   </Card>

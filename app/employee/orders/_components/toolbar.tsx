@@ -36,31 +36,38 @@ export function MyOrdersDataTableToolbar<TData>({ table }: DataTableToolbarProps
   const isFiltered = table.getState().columnFilters.length > 0
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
-        <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search menu items..."
-            value={(table.getColumn("selectedOption")?.getFilterValue() as string) ?? ""}
-            onChange={(event) => {
-              const value = event.target.value
-              table.getColumn("selectedOption")?.setFilterValue(value)
-            }}
-            className="h-8 w-[150px] lg:w-[250px] pl-8"
-          />
+    <div className="space-y-2">
+      {/* Search and Filters Row */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1 sm:flex-initial">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search menu items..."
+              value={(table.getColumn("selectedOption")?.getFilterValue() as string) ?? ""}
+              onChange={(event) => {
+                const value = event.target.value
+                table.getColumn("selectedOption")?.setFilterValue(value)
+              }}
+              className="h-8 w-full sm:w-[150px] lg:w-[250px] pl-8"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            {table.getColumn("status") && (
+              <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={statuses} />
+            )}
+            {isFiltered && (
+              <Button variant="ghost" onClick={() => table.resetColumnFilters()} className="h-8 px-2 lg:px-3">
+                Reset
+                <Plus className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
-        {table.getColumn("status") && (
-          <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={statuses} />
-        )}
-        {isFiltered && (
-          <Button variant="ghost" onClick={() => table.resetColumnFilters()} className="h-8 px-2 lg:px-3">
-            Reset
-            <Plus className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex justify-end">
+          <DataTableViewOptions table={table} />
+        </div>
       </div>
-      <DataTableViewOptions table={table} />
     </div>
   )
 }
