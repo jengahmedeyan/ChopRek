@@ -892,20 +892,6 @@ export function EnhancedMenuCreator() {
                       className="h-10 sm:h-11 text-sm"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="imageUrl" className="text-xs sm:text-sm font-medium">
-                      Menu Image URL (Optional)
-                    </Label>
-                    <Input
-                      id="imageUrl"
-                      placeholder="https://example.com/menu-image.jpg"
-                      value={menuForm.imageUrl}
-                      onChange={(e) =>
-                        setMenuForm({ ...menuForm, imageUrl: e.target.value })
-                      }
-                      className="h-10 sm:h-11 text-sm"
-                    />
-                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-3 sm:pt-4 gap-2">
@@ -1025,33 +1011,6 @@ export function EnhancedMenuCreator() {
                             rows={2}
                             className="resize-none text-sm"
                           />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-xs sm:text-sm font-medium">
-                            Dietary Type
-                          </Label>
-                          <Select
-                            value={option.dietary}
-                            onValueChange={(value) =>
-                              updateOption(index, "dietary", value)
-                            }
-                          >
-                            <SelectTrigger className="h-9 sm:h-10 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="regular">Regular</SelectItem>
-                              <SelectItem value="vegetarian">
-                                Vegetarian
-                              </SelectItem>
-                              <SelectItem value="vegan">Vegan</SelectItem>
-                              <SelectItem value="gluten-free">
-                                Gluten-Free
-                              </SelectItem>
-                              <SelectItem value="keto">Keto</SelectItem>
-                            </SelectContent>
-                          </Select>
                         </div>
                       </div>
                     </Card>
@@ -1328,7 +1287,7 @@ export function EnhancedMenuCreator() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
-                                variant="outline"
+                                variant={menu.isPublished ? "default" : "outline"}
                                 size="sm"
                                 onClick={() =>
                                   toggleMenuPublished(menu.id, menu.isPublished, menu.date)
@@ -1383,7 +1342,11 @@ export function EnhancedMenuCreator() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleNotifyTeams(menu)}
-                                disabled={!menu.isPublished || notifyingMenuId === menu.id}
+                                disabled={
+                                  !menu.isPublished ||
+                                  (!menu.isActive && menu.date !== new Date().toISOString().split('T')[0]) ||
+                                  notifyingMenuId === menu.id
+                                }
                                 className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                               >
                                 {notifyingMenuId === menu.id ? (
@@ -1394,7 +1357,15 @@ export function EnhancedMenuCreator() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="text-xs">{!menu.isPublished ? "Publish menu first" : "Notify Teams"}</p>
+                              <p className="text-xs">
+                                {!menu.isPublished
+                                  ? "Publish menu first"
+                                  : !menu.isActive && menu.date !== new Date().toISOString().split('T')[0]
+                                  ? "Menu is deactivated and not scheduled for today. Activate it or change the date to today to notify Teams."
+                                  : notifyingMenuId === menu.id
+                                  ? "Sending notification..."
+                                  : "Notify Teams"}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
 
