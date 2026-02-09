@@ -75,6 +75,8 @@ import {
   Zap,
   Star,
   Send,
+  Trash,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -88,6 +90,7 @@ interface MenuTemplate {
 }
 
 type CreateStep = "start" | "basic" | "options" | "review";
+type TabType = "create" | "manage" | "recycle";
 
 async function sendTeamsNotification(menu: Menu) {
   try {
@@ -107,13 +110,14 @@ async function sendTeamsNotification(menu: Menu) {
 export function EnhancedMenuCreator() {
   const { user } = useAuth();
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [deletedMenus, setDeletedMenus] = useState<Menu[]>([]);
   const [templates, setTemplates] = useState<MenuTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [activeTab, setActiveTab] = useState<"create" | "manage">("create");
+  const [activeTab, setActiveTab] = useState<TabType>("create");
   const [createStep, setCreateStep] = useState<CreateStep>("start");
   const [notifyingMenuId, setNotifyingMenuId] = useState<string | null>(null);
 
@@ -121,7 +125,7 @@ export function EnhancedMenuCreator() {
     title: "",
     description: "",
     date: new Date().toISOString().split("T")[0],
-    cutoffTime: "11:00",
+    cutoffTime: "13:30",
     imageUrl: "",
     isPublished: false,
   });
@@ -146,14 +150,14 @@ export function EnhancedMenuCreator() {
       const db = await getDb();
       const menusQuery = query(collection(db, "menus"));
       const menusSnapshot = await getDocs(menusQuery);
-      const menusData = menusSnapshot.docs.map((doc) => {
+      const allMenusData = menusSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
           title: data.title || "Untitled",
           description: data.description || "",
           date: data.date || new Date().toISOString().split("T")[0],
-          cutoffTime: data.cutoffTime || "11:00",
+          cutoffTime: data.cutoffTime || "13:30",
           options: data.options || [],
           isPublished: data.isPublished ?? false,
           isActive: data.isActive ?? false,
@@ -165,8 +169,17 @@ export function EnhancedMenuCreator() {
             : undefined,
           createdBy: data.createdBy || "",
           imageUrl: data.imageUrl || "",
+          isDeleted: data.isDeleted ?? false,
+          deletedAt: data.deletedAt?.toDate
+            ? data.deletedAt.toDate()
+            : undefined,
+          deletedBy: data.deletedBy || undefined,
         };
       }) as Menu[];
+
+      // Separate active and deleted menus
+      const menusData = allMenusData.filter((menu) => !menu.isDeleted);
+      const deletedData = allMenusData.filter((menu) => menu.isDeleted);
 
       const templatesQuery = query(collection(db, "menuTemplates"));
       const templatesSnapshot = await getDocs(templatesQuery);
@@ -187,6 +200,11 @@ export function EnhancedMenuCreator() {
       setMenus(
         menusData.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+      );
+      setDeletedMenus(
+        deletedData.sort(
+          (a, b) => (b.deletedAt?.getTime() || 0) - (a.deletedAt?.getTime() || 0)
         )
       );
       setTemplates(
@@ -212,7 +230,7 @@ export function EnhancedMenuCreator() {
       title: "",
       description: "",
       date: new Date().toISOString().split("T")[0],
-      cutoffTime: "11:00",
+      cutoffTime: "13:30",
       imageUrl: "",
       isPublished: false,
     });
@@ -351,7 +369,6 @@ export function EnhancedMenuCreator() {
   const handleSubmit = async () => {
     if (
       !menuForm.title ||
-      !menuForm.description ||
       options.some((opt) => !opt.name)
     ) {
       toast({
@@ -498,9 +515,103 @@ export function EnhancedMenuCreator() {
   };
 
   const deleteMenu = async (menuId: string) => {
+    try {
+      const db = await getDb();
+      const menu = menus.find((m) => m.id === menuId);
+      
+      if (!menu) return;
+
+      // Check if menu is active or published for today
+      const today = new Date().toISOString().split('T')[0];
+      const isToday = menu.date === today;
+      
+      let confirmMessage = "Are you sure you want to move this menu to the Recycle Bin?";
+      
+      if (menu.isActive) {
+        confirmMessage = "⚠️ WARNING: This is the ACTIVE menu!\n\nDeleting it will disrupt current operations and orders. Are you absolutely sure you want to move it to the Recycle Bin?";
+      } else if (menu.isPublished && isToday) {
+        confirmMessage = "⚠️ This menu is published for TODAY.\n\nEmployees may have already placed orders. Are you sure you want to move it to the Recycle Bin?";
+      } else if (menu.isPublished) {
+        confirmMessage = "This menu is published. Are you sure you want to move it to the Recycle Bin?";
+      }
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+      
+      // Soft delete: mark as deleted
+      await updateDoc(doc(db, "menus", menuId), {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: user!.uid,
+      });
+      
+      // Move from menus to deletedMenus
+      const deletedMenu = {
+        ...menu,
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: user!.uid,
+      };
+      setDeletedMenus([deletedMenu, ...deletedMenus]);
+      setMenus(menus.filter((m) => m.id !== menuId));
+      
+      toast({
+        title: "Menu Moved to Recycle Bin",
+        description: "Menu can be restored from the Recycle Bin",
+      });
+    } catch (error) {
+      console.error("Error deleting menu:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move menu to recycle bin",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const restoreMenu = async (menuId: string) => {
+    try {
+      const db = await getDb();
+      const menu = deletedMenus.find((m) => m.id === menuId);
+      
+      // Remove soft delete flags
+      await updateDoc(doc(db, "menus", menuId), {
+        isDeleted: false,
+        deletedAt: null,
+        deletedBy: null,
+      });
+      
+      // Move from deletedMenus back to menus
+      if (menu) {
+        const restoredMenu = {
+          ...menu,
+          isDeleted: false,
+          deletedAt: undefined,
+          deletedBy: undefined,
+        };
+        setMenus([restoredMenu, ...menus]);
+      }
+      setDeletedMenus(deletedMenus.filter((menu) => menu.id !== menuId));
+      
+      toast({
+        title: "Menu Restored",
+        description: "Menu has been restored successfully",
+      });
+    } catch (error) {
+      console.error("Error restoring menu:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore menu",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const permanentDeleteMenu = async (menuId: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this menu? This action cannot be undone."
+        "Are you sure you want to permanently delete this menu? This action cannot be undone."
       )
     ) {
       return;
@@ -508,16 +619,16 @@ export function EnhancedMenuCreator() {
     try {
       const db = await getDb();
       await deleteDoc(doc(db, "menus", menuId));
-      setMenus(menus.filter((menu) => menu.id !== menuId));
+      setDeletedMenus(deletedMenus.filter((menu) => menu.id !== menuId));
       toast({
-        title: "Menu Deleted",
-        description: "Menu has been deleted successfully",
+        title: "Menu Permanently Deleted",
+        description: "Menu has been permanently deleted",
       });
     } catch (error) {
-      console.error("Error deleting menu:", error);
+      console.error("Error permanently deleting menu:", error);
       toast({
         title: "Error",
-        description: "Failed to delete menu",
+        description: "Failed to permanently delete menu",
         variant: "destructive",
       });
     }
@@ -630,7 +741,7 @@ export function EnhancedMenuCreator() {
   };
 
   const canProceedToOptions = () => {
-    return menuForm.title.trim() && menuForm.description.trim();
+    return menuForm.title.trim();
   };
 
   const canProceedToReview = () => {
@@ -659,9 +770,9 @@ export function EnhancedMenuCreator() {
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as "create" | "manage")}
+        onValueChange={(value) => setActiveTab(value as TabType)}
       >
-        <TabsList className="grid w-full grid-cols-2 h-auto">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
           <TabsTrigger value="create" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
             <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline">Create Menu</span>
@@ -669,8 +780,13 @@ export function EnhancedMenuCreator() {
           </TabsTrigger>
           <TabsTrigger value="manage" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
             <UtensilsCrossed className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden xs:inline">Manage ({menus.length})</span>
-            <span className="xs:hidden">Manage</span>
+            <span className="hidden sm:inline">Manage ({menus.length})</span>
+            <span className="sm:hidden">Manage</span>
+          </TabsTrigger>
+          <TabsTrigger value="recycle" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+            <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Recycle ({deletedMenus.length})</span>
+            <span className="sm:hidden">Bin</span>
           </TabsTrigger>
         </TabsList>
 
@@ -863,7 +979,7 @@ export function EnhancedMenuCreator() {
 
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-xs sm:text-sm font-medium">
-                    Description *
+                    Description
                   </Label>
                   <Textarea
                     id="description"
@@ -1386,6 +1502,112 @@ export function EnhancedMenuCreator() {
                           </Tooltip>
                          
                           
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="recycle" className="space-y-3 sm:space-y-4 lg:space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-base sm:text-lg">Recycle Bin</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Restore or permanently delete menus
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4 lg:p-6">
+              {deletedMenus.length === 0 ? (
+                <div className="text-center py-8 sm:py-12">
+                  <Trash className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-gray-300 mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
+                    Recycle bin is empty
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    Deleted menus will appear here and can be restored
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 mt-0.5 text-blue-600" />
+                      <div>
+                        <p className="text-xs sm:text-sm text-blue-900 font-medium">
+                          {deletedMenus.length} {deletedMenus.length === 1 ? "menu" : "menus"} in recycle bin
+                        </p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          Menus can be restored or permanently deleted
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {deletedMenus.map((menu) => (
+                    <Card key={menu.id} className="p-3 sm:p-4 shadow-sm bg-gray-50">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex-1 space-y-1 sm:space-y-2">
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-700 line-through">
+                              {menu.title}
+                            </h3>
+                            <Badge variant="secondary" className="text-xs">
+                              Deleted
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {format(new Date(menu.date), "MMM dd")}
+                            </Badge>
+                          </div>
+                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-1 sm:line-clamp-2">
+                            {menu.description}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-gray-500">
+                            <span>{menu.options.length} options</span>
+                            {menu.deletedAt && (
+                              <span>
+                                Deleted: {format(menu.deletedAt, "MMM dd, yyyy 'at' HH:mm")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => restoreMenu(menu.id)}
+                                className="h-8 sm:h-9 text-xs sm:text-sm gap-1 sm:gap-2"
+                              >
+                                <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="hidden sm:inline">Restore</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Restore menu</p>
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => permanentDeleteMenu(menu.id)}
+                                className="h-8 sm:h-9 text-xs sm:text-sm gap-1 sm:gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="hidden sm:inline">Delete Forever</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Permanently delete (cannot be undone)</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                     </Card>

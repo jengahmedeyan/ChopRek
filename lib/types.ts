@@ -53,6 +53,10 @@ export interface Menu {
   createdAt: Date
   createdBy: string
   imageUrl?: string
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
+  updatedAt?: Date
 }
 
 export type FirestoreDate = Date | { toDate: () => Date } | string | number

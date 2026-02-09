@@ -123,7 +123,7 @@ export function MenuViewer() {
         selectedOption: selectedMealOption,
         quantity: 1,
         orderDate: todayMenu.date,
-        status: "pending" as const,
+        status: "confirmed" as const,
         createdAt: new Date(),
         updatedAt: new Date(),
         totalPrice: selectedMealOption.price || 0,

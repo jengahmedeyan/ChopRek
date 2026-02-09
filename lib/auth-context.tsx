@@ -27,6 +27,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>
   signup: (email: string, password: string, displayName: string, department?: string) => Promise<void>
   logout: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
   updateUserRole: (userId: string, newRole: Role) => Promise<void>
   updateUserMFA: (enabled: boolean) => Promise<void>
   refreshUserData: () => Promise<void>
@@ -314,6 +315,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const resetPassword = async (email: string) => {
+    setError(null)
+    try {
+      const { sendPasswordResetEmail } = await import("firebase/auth")
+      await sendPasswordResetEmail(getAuth(), email, {
+        url: `${window.location.origin}/auth/signin`,
+        handleCodeInApp: false,
+      })
+    } catch (err: any) {
+      const appError = handleError(err, 'password-reset')
+      logError(appError)
+      setError(appError.message)
+      throw new Error(appError.message)
+    }
+  }
+
   const updateUserRole = async (userId: string, newRole: Role): Promise<void> => {
     try {
       const db = await getDb()
@@ -392,6 +409,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithGoogle,
     signup,
     logout,
+    resetPassword,
     updateUserRole,
     updateUserMFA,
     refreshUserData
