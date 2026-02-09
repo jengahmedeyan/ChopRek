@@ -26,9 +26,9 @@ import {
   Download,
   Calendar,
   TrendingUp,
-  DollarSign,
   Truck,
   Package,
+  Banknote,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -470,7 +470,7 @@ export default function DeliveryReportsPage() {
                 <CardTitle className="text-sm font-medium">
                   Total Cost
                 </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <Banknote className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -617,10 +617,10 @@ export default function DeliveryReportsPage() {
                             {driver.ordersCount}
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            ${driver.totalEarnings.toFixed(2)}
+                            D{driver.totalEarnings.toFixed(2)}
                           </TableCell>
                           <TableCell className="text-right text-muted-foreground">
-                            $
+                            D
                             {(
                               driver.totalEarnings / driver.deliveriesCount
                             ).toFixed(2)}

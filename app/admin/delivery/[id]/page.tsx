@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft, CheckCircle, Truck, Calendar, DollarSign, Package, MapPin } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Truck, Calendar, Package, MapPin, Banknote } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -183,7 +183,7 @@ export default function DeliveryDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Delivery Cost</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">D{delivery.deliveryPrice.toFixed(2)}</div>

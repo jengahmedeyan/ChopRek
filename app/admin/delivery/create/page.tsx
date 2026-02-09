@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft, Package, CheckCircle, Users, DollarSign } from 'lucide-react'
+import { ArrowLeft, Package, CheckCircle, Users, Banknote } from 'lucide-react'
 
 export default function CreateDeliveryPage() {
   const router = useRouter()
@@ -31,7 +31,7 @@ export default function CreateDeliveryPage() {
     driverId: '',
     taxiServiceName: '',
     deliveryDate: '',
-    deliveryTime: '',
+    deliveryTime: '14:00',
     deliveryPrice: '',
     notes: ''
   })
@@ -222,7 +222,7 @@ export default function CreateDeliveryPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">D{totalOrdersValue.toFixed(2)}</div>
@@ -287,14 +287,14 @@ export default function CreateDeliveryPage() {
                         )}
                       </div>
                       <div className="text-sm font-medium">
-                        ${order.totalPrice.toFixed(2)}
+                        D{order.totalPrice.toFixed(2)}
                       </div>
                     </div>
                   ))}
                   <div className="pt-3 border-t">
                     <div className="flex justify-between font-semibold">
                       <span>Total:</span>
-                      <span>${totalOrdersValue.toFixed(2)}</span>
+                      <span>D{totalOrdersValue.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
