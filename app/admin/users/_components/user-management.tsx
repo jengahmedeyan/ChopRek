@@ -238,31 +238,6 @@ export function UserManagement({ className }: UserManagementProps) {
     setSelectedUserIds(selectedIds)
   }, [users])
 
-  const exportUsers = () => {
-    const csvContent = [
-      ["Name", "Email", "Role", "Department", "Joined Date"],
-      ...users.map(user => [
-        user.displayName || "",
-        user.email || "",
-        user.role,
-        user.department || "",
-        user.createdAt.toLocaleDateString()
-      ])
-    ].map(row => row.join(",")).join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "users.csv"
-    a.click()
-    window.URL.revokeObjectURL(url)
-
-    toast({
-      title: "Success",
-      description: "Users exported successfully",
-    })
-  }
 
   const columns = getColumns({
     onEdit: openEditDialog,
@@ -290,15 +265,6 @@ export function UserManagement({ className }: UserManagementProps) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button 
-            variant="outline" 
-            onClick={exportUsers}
-            className="h-9 sm:h-10 text-xs sm:text-sm"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            <span className="hidden xs:inline">Export</span>
-            <span className="xs:hidden">📥</span>
-          </Button>
           <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
             <DialogTrigger asChild>
               <Button className="h-9 sm:h-10 text-xs sm:text-sm">
