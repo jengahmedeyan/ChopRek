@@ -31,9 +31,18 @@ const OrderCard = ({ order, updateOrderStatus }: OrderCardProps) => {
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm sm:text-base truncate">{order.userName || order.guestName}</h3>
-            {order.userEmail && (
-              <p className="text-xs text-muted-foreground truncate">{order.userEmail}</p>
+            {order.type === "manual" ? (
+              <>
+                <h3 className="font-semibold text-sm sm:text-base text-muted-foreground italic">Manual entry</h3>
+                <Badge variant="secondary" className="text-xs mt-0.5">No user</Badge>
+              </>
+            ) : (
+              <>
+                <h3 className="font-semibold text-sm sm:text-base truncate">{order.userName || order.guestName}</h3>
+                {order.userEmail && (
+                  <p className="text-xs text-muted-foreground truncate">{order.userEmail}</p>
+                )}
+              </>
             )}
           </div>
           <Badge className={`${getStatusColor(order.status)} text-xs shrink-0 ml-2`}>
