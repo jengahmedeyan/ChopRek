@@ -1,31 +1,18 @@
 "use client";
 
-import type React from "react";
-
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { UtensilsCrossed, Clock, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     // Redirect authenticated users to their dashboard
@@ -69,11 +56,8 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => router.push("/auth/signin")}
-              >
-                Sign In
+              <Button variant="ghost" asChild>
+                <Link href="/auth/signin">Sign In</Link>
               </Button>
             </div>
           </div>
@@ -158,11 +142,8 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full mt-4"
-                  onClick={() => router.push("/auth/signin")}
-                >
-                  Order Now
+                <Button className="w-full mt-4" asChild>
+                  <Link href="/auth/signin">Order Now</Link>
                 </Button>
               </div>
 
@@ -195,17 +176,15 @@ export default function HomePage() {
                 Sign in with your account to view today's menu and place your
                 order.
               </p>
-              <Button
-                size="lg"
-                onClick={() => router.push("/auth/signin")}
-                className="px-8"
-              >
-                Sign In to Order
+              <Button size="lg" className="px-8" asChild>
+                <Link href="/auth/signin">Sign In to Order</Link>
               </Button>
             </CardContent>
           </Card>
         </div>
       </section>
+
+      <Analytics />
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
