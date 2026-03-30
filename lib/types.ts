@@ -63,14 +63,14 @@ export type FirestoreDate = Date | { toDate: () => Date } | string | number
 
 export interface Order {
   id: string
-  type: "user" | "guest"
+  type: "user" | "guest" | "manual"
   userId?: string
   userName?: string
   userEmail?: string
   userDepartment?: string
   guestName?: string
   guestReason?: string
-  menuId: string
+  menuId?: string
   selectedOption: MenuOption
   quantity: number
   orderDate: string
@@ -79,6 +79,7 @@ export interface Order {
   updatedAt: FirestoreDate
   totalPrice: number
   deliveryId?: string
+  notes?: string
 }
 
 export interface NewOrderNotificationPayload {
