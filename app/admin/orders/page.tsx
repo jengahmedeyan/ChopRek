@@ -10,7 +10,7 @@ import { collection, query, where, onSnapshot, updateDoc, doc, getDocs, addDoc, 
 import { getDb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
 import type { Order, Menu, MenuOption } from "@/lib/types"
-import { Download, RefreshCw, Clock, CheckCircle, Package, Loader2, History, Calendar, AlertCircle } from "lucide-react"
+import { Download, RefreshCw, Clock, CheckCircle, Package, Loader2, History, Calendar, AlertCircle, Plus, Trash2, ClipboardList } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { createNotification, createOrderStatusNotification } from "@/services/notifications"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -34,6 +34,72 @@ export default function OrdersDashboard() {
   const [menuId, setMenuId] = useState<string>("")
   const [guestOrderLoading, setGuestOrderLoading] = useState(false)
 
+  // Manual order entry state
+  const [manualOrderOpen, setManualOrderOpen] = useState(false)
+  const [manualOrderDate, setManualOrderDate] = useState(new Date().toISOString().split("T")[0])
+  const [manualItems, setManualItems] = useState<{ name: string; quantity: number; price: string }[]>([
+    { name: "", quantity: 1, price: "" },
+  ])
+  const [manualOrderLoading, setManualOrderLoading] = useState(false)
+
+  const addManualItem = () =>
+    setManualItems((prev) => [...prev, { name: "", quantity: 1, price: "" }])
+
+  const removeManualItem = (index: number) =>
+    setManualItems((prev) => prev.filter((_, i) => i !== index))
+
+  const updateManualItem = (index: number, field: string, value: string | number) =>
+    setManualItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
+
+  const handleManualOrderSubmit = async () => {
+    const validItems = manualItems.filter((item) => item.name.trim() !== "")
+    if (validItems.length === 0) return
+
+    setManualOrderLoading(true)
+    try {
+      const db = await getDb()
+      await Promise.all(
+        validItems.map((item) => {
+          const price = parseFloat(item.price) || 0
+          return addDoc(collection(db, "orders"), {
+            type: "manual",
+            menuId: "",
+            userName: "Manual Entry",
+            selectedOption: {
+              id: `manual-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              name: item.name.trim(),
+              price,
+              dietary: "regular",
+            },
+            quantity: item.quantity,
+            orderDate: manualOrderDate,
+            status: "confirmed",
+            totalPrice: price * item.quantity,
+            userId: user?.uid,
+            createdBy: user?.uid,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+        })
+      )
+      toast({
+        title: "Orders Recorded",
+        description: `${validItems.length} item${validItems.length > 1 ? "s" : ""} recorded successfully.`,
+      })
+      setManualOrderOpen(false)
+      setManualItems([{ name: "", quantity: 1, price: "" }])
+      setManualOrderDate(new Date().toISOString().split("T")[0])
+    } catch (error) {
+      console.error("Error creating manual orders:", error)
+      toast({
+        title: "Error",
+        description: "Failed to record orders. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setManualOrderLoading(false)
+    }
+  }
 
   const loadAllOrders = async () => {
     if (!user || user.role !== "admin") return
@@ -233,9 +299,19 @@ export default function OrdersDashboard() {
     <div className="space-y-3 sm:space-y-4 lg:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center sm:justify-between">
-        <Button onClick={() => setGuestOrderOpen(true)} className="w-full sm:w-auto text-sm sm:text-base h-9 sm:h-10">
-          Place Guest Order
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button onClick={() => setGuestOrderOpen(true)} className="w-full sm:w-auto text-sm sm:text-base h-9 sm:h-10">
+            Place Guest Order
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setManualOrderOpen(true)}
+            className="w-full sm:w-auto text-sm sm:text-base h-9 sm:h-10"
+          >
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Manual Entry
+          </Button>
+        </div>
         {/* Action Buttons */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9">
@@ -287,6 +363,127 @@ export default function OrdersDashboard() {
               className="w-full sm:w-auto"
             >
               {guestOrderLoading ? "Placing..." : "Place Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Order Entry Dialog */}
+      <Dialog open={manualOrderOpen} onOpenChange={(open) => {
+        setManualOrderOpen(open)
+        if (!open) {
+          setManualItems([{ name: "", quantity: 1, price: "" }])
+          setManualOrderDate(new Date().toISOString().split("T")[0])
+        }
+      }}>
+        <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Manual Order Entry
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Record orders without a menu. Useful for tracking when no menu was created for the day.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Date */}
+            <div>
+              <Label htmlFor="manualDate">Order Date</Label>
+              <Input
+                id="manualDate"
+                type="date"
+                value={manualOrderDate}
+                onChange={(e) => setManualOrderDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Items */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Items</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={addManualItem} className="h-7 text-xs gap-1">
+                  <Plus className="h-3 w-3" /> Add Item
+                </Button>
+              </div>
+
+              {/* Header row */}
+              <div className="grid grid-cols-[1fr_72px_80px_32px] gap-2 text-xs text-muted-foreground px-1">
+                <span>Item name</span>
+                <span className="text-center">Qty</span>
+                <span className="text-center">Price (D)</span>
+                <span />
+              </div>
+
+              {manualItems.map((item, index) => (
+                <div key={index} className="grid grid-cols-[1fr_72px_80px_32px] gap-2 items-center">
+                  <Input
+                    placeholder="e.g. Chicken rice"
+                    value={item.name}
+                    onChange={(e) => updateManualItem(index, "name", e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(e) => updateManualItem(index, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
+                    className="h-8 text-sm text-center"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={item.price}
+                    onChange={(e) => updateManualItem(index, "price", e.target.value)}
+                    className="h-8 text-sm text-center"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeManualItem(index)}
+                    disabled={manualItems.length === 1}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Totals summary */}
+              {manualItems.some((item) => item.name.trim() && parseFloat(item.price) > 0) && (
+                <div className="flex justify-end text-sm text-muted-foreground border-t pt-2">
+                  Total: D{manualItems
+                    .filter((item) => item.name.trim())
+                    .reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0)
+                    .toFixed(2)}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setManualOrderOpen(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleManualOrderSubmit}
+              disabled={manualOrderLoading || manualItems.every((item) => !item.name.trim())}
+              className="w-full sm:w-auto"
+            >
+              {manualOrderLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Record Orders"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
