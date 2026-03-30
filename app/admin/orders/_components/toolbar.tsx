@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { X } from 'lucide-react';
 import type { Table } from "@tanstack/react-table"
 
@@ -35,6 +36,17 @@ const statuses = [
 export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0
 
+  const itemOptions = React.useMemo(() => {
+    const names = new Set<string>()
+    table.getCoreRowModel().rows.forEach((row) => {
+      const name = (row.original as any).selectedOption?.name
+      if (name) names.add(name)
+    })
+    return Array.from(names)
+      .sort()
+      .map((name) => ({ label: name, value: name }))
+  }, [table.getCoreRowModel().rows])
+
   return (
     <div className="space-y-2">
       {/* Search and Filters Row */}
@@ -52,6 +64,9 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
           <div className="flex items-center gap-2">
             {table.getColumn("status") && (
               <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={statuses} />
+            )}
+            {table.getColumn("selectedOption") && itemOptions.length > 0 && (
+              <DataTableFacetedFilter column={table.getColumn("selectedOption")} title="Item" options={itemOptions} />
             )}
             {isFiltered && (
               <Button variant="ghost" onClick={() => table.resetColumnFilters()} className="h-8 px-2 lg:px-3">
