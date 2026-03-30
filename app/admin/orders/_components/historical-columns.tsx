@@ -80,6 +80,14 @@ export const historicalColumns: ColumnDef<Order>[] = [
     },
     cell: ({ row }) => {
       const order = row.original
+      if (order.type === "manual") {
+        return (
+          <div>
+            <p className="font-medium text-muted-foreground italic">Manual entry</p>
+            <Badge variant="secondary" className="text-xs mt-0.5">No user</Badge>
+          </div>
+        )
+      }
       return (
         <div>
           <p className="font-medium">{order.userName || order.guestName}</p>
@@ -97,14 +105,26 @@ export const historicalColumns: ColumnDef<Order>[] = [
         <div>
           <p className="font-medium">{order.selectedOption.name}</p>
           <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
+          {order.notes && (
+            <p className="text-xs text-muted-foreground italic truncate max-w-[160px]" title={order.notes}>
+              {order.notes}
+            </p>
+          )}
         </div>
       )
+    },
+    filterFn: (row, _id, value: string[]) => {
+      return value.includes(row.original.selectedOption?.name)
     },
   },
   {
     accessorKey: "userDepartment",
     header: "Department",
     cell: ({ row }) => {
+      const order = row.original
+      if (order.type === "manual") {
+        return <Badge variant="secondary" className="text-xs">Manual</Badge>
+      }
       const department = row.getValue("userDepartment") as string
       return <Badge variant="outline">{department || "N/A"}</Badge>
     },
