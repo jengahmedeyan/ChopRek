@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
 import type { Order } from "@/lib/types"
 import { format, subDays, startOfMonth } from "date-fns"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 import { Download, TrendingUp, Users, Award } from "lucide-react"
 import { normalizeDate } from "@/utils/date"
 import { getDb } from "@/lib/firebase-config"
@@ -18,6 +18,7 @@ export function AnalyticsDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [timeRange, setTimeRange] = useState("7days")
   const [loading, setLoading] = useState(true)
+  const [showAllLegend, setShowAllLegend] = useState(false)
 
   useEffect(() => {
     fetchOrders()
@@ -290,13 +291,28 @@ export function AnalyticsDashboard() {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomPieTooltip />} />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36}
-                  formatter={(value) => <span className="text-sm">{value}</span>}
-                />
               </PieChart>
             </ResponsiveContainer>
+            {/* Custom collapsible legend */}
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              {(showAllLegend ? mealStats : mealStats.slice(0, 4)).map((entry, index) => (
+                <div key={entry.name} className="flex items-center gap-1.5 text-sm">
+                  <span
+                    className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-muted-foreground">{entry.name}</span>
+                </div>
+              ))}
+              {mealStats.length > 4 && (
+                <button
+                  onClick={() => setShowAllLegend((v) => !v)}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  {showAllLegend ? "See less" : `+${mealStats.length - 4} more`}
+                </button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
