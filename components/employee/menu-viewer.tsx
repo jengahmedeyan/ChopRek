@@ -208,7 +208,7 @@ export function MenuViewer() {
   const upcomingMenus = menus.filter(menu => menu.date > today)
 
   return (
-    <div className="space-y-3 sm:space-y-4 lg:space-y-6 p-2 sm:p-4 lg:p-6">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-6">
       <Tabs defaultValue={todayMenu ? "today" : "upcoming"}>
         <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="today" disabled={!todayMenu} className="text-xs sm:text-sm py-2">
