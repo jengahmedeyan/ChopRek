@@ -18,52 +18,6 @@ export default function MyOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  const personalStats = useMemo(() => {
-    const thisMonthStart = startOfMonth(new Date()).toISOString().split("T")[0]
-    const todayStr = new Date().toISOString().split("T")[0]
-
-    const prevWorkday = (dateStr: string) => {
-      const d = new Date(dateStr + "T12:00:00")
-      const day = d.getDay()
-      const daysBack = day === 1 ? 3 : day === 0 ? 2 : 1
-      return subDays(d, daysBack).toISOString().split("T")[0]
-    }
-
-    const workdayOrders = orders.filter((o) => {
-      const day = new Date(o.orderDate + "T12:00:00").getDay()
-      return day >= 1 && day <= 5
-    })
-    const uniqueDates = [...new Set(workdayOrders.map((o) => o.orderDate))].sort().reverse()
-
-    const todayDay = new Date(todayStr + "T12:00:00").getDay()
-    const lastWorkday =
-      todayDay === 0
-        ? subDays(new Date(todayStr + "T12:00:00"), 2).toISOString().split("T")[0]
-        : todayDay === 6
-        ? subDays(new Date(todayStr + "T12:00:00"), 1).toISOString().split("T")[0]
-        : todayStr
-
-    let streak = 0
-    if (uniqueDates.length > 0 && (uniqueDates[0] === todayStr || uniqueDates[0] === lastWorkday)) {
-      streak = 1
-      for (let i = 1; i < uniqueDates.length; i++) {
-        if (uniqueDates[i] === prevWorkday(uniqueDates[i - 1])) streak++
-        else break
-      }
-    }
-
-    const mealCounts = new Map<string, number>()
-    orders.forEach((o) => mealCounts.set(o.selectedOption.name, (mealCounts.get(o.selectedOption.name) || 0) + 1))
-    const sortedMeals = [...mealCounts.entries()].sort((a, b) => b[1] - a[1])
-
-    return {
-      streak,
-      favoriteMeal: sortedMeals[0]?.[0] ?? "—",
-      favoriteMealCount: sortedMeals[0]?.[1] ?? 0,
-      ordersThisMonth: orders.filter((o) => o.orderDate >= thisMonthStart).length,
-    }
-  }, [orders])
-
   useEffect(() => {
     if (!user) return
 
