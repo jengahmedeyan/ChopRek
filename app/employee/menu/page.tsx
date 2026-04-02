@@ -86,31 +86,38 @@ export default function EmployeeMenuPage() {
   useEffect(() => {
     if (!user) return
 
+    let unsubscribe: (() => void) | null = null
+
     const fetchOrders = async () => {
-      const db = await getDb()
-      const ordersQuery = query(
-        collection(db, "orders"),
-        where("userId", "==", user.uid),
-        orderBy("orderDate", "desc")
-      )
+      try {
+        const db = await getDb()
+        const ordersQuery = query(
+          collection(db, "orders"),
+          where("userId", "==", user.uid),
+          orderBy("orderDate", "desc")
+        )
 
-      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-        const ordersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        })) as Order[]
+        unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+          const ordersData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+          })) as Order[]
 
-        setOrders(ordersData)
-      })
-
-      return unsubscribe
+          setOrders(ordersData)
+        })
+      } catch (error) {
+        console.error("Error fetching orders:", error)
+      }
     }
 
-    const unsub = fetchOrders()
+    fetchOrders()
+
     return () => {
-      unsub && unsub.then((fn) => fn && fn())
+      if (unsubscribe) {
+        unsubscribe()
+      }
     }
   }, [user])
 
