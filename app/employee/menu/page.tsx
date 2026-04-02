@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { subDays, startOfMonth } from "date-fns"
 import { Package } from "lucide-react"
 import { getDb } from "@/lib/firebase-config"
-import { collection, query, where, onSnapshot } from "firebase/firestore"
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore"
 import { useAuth } from "@/lib/auth-context"
 import type { Order } from "@/lib/types"
 import StatCard from "@/app/employee/orders/_components/stat-card"
@@ -16,32 +16,44 @@ export default function EmployeeMenuPage() {
   const [orders, setOrders] = useState<Order[]>([])
 
   const personalStats = useMemo(() => {
-    const thisMonthStart = startOfMonth(new Date()).toISOString().split("T")[0]
-    const todayStr = new Date().toISOString().split("T")[0]
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    const today = new Date()
+    const thisMonthStart = formatLocalDate(startOfMonth(today))
+    const todayStr = formatLocalDate(today)
 
     const prevWorkday = (dateStr: string) => {
       const d = new Date(dateStr + "T12:00:00")
       const day = d.getDay()
-      const daysBack = day === 1 ? 3 : day === 0 ? 2 : 1
-      return subDays(d, daysBack).toISOString().split("T")[0]
+      // Since uniqueDates only contains workdays (Mon-Fri), we only handle those cases
+      // Monday (1) -> go back 3 days to Friday, otherwise go back 1 day
+      const daysBack = day === 1 ? 3 : 1
+      return formatLocalDate(subDays(d, daysBack))
     }
 
     const workdayOrders = orders.filter((o) => {
+      // Only count orders that were actually fulfilled (exclude cancelled orders)
+      if (o.status === "cancelled") return false
       const day = new Date(o.orderDate + "T12:00:00").getDay()
       return day >= 1 && day <= 5
     })
     const uniqueDates = [...new Set(workdayOrders.map((o) => o.orderDate))].sort().reverse()
 
-    const todayDay = new Date(todayStr + "T12:00:00").getDay()
+    const todayDay = today.getDay()
     const lastWorkday =
       todayDay === 0
-        ? subDays(new Date(todayStr + "T12:00:00"), 2).toISOString().split("T")[0]
+        ? formatLocalDate(subDays(today, 2)) // Sunday -> Friday
         : todayDay === 6
-        ? subDays(new Date(todayStr + "T12:00:00"), 1).toISOString().split("T")[0]
+        ? formatLocalDate(subDays(today, 1)) // Saturday -> Friday
         : todayStr
 
     let streak = 0
-    if (uniqueDates.length > 0 && (uniqueDates[0] === todayStr || uniqueDates[0] === lastWorkday)) {
+    if (uniqueDates.length > 0 && uniqueDates[0] === lastWorkday) {
       streak = 1
       for (let i = 1; i < uniqueDates.length; i++) {
         if (uniqueDates[i] === prevWorkday(uniqueDates[i - 1])) streak++
@@ -49,15 +61,25 @@ export default function EmployeeMenuPage() {
       }
     }
 
-    const mealCounts = new Map<string, number>()
-    orders.forEach((o) => mealCounts.set(o.selectedOption.name, (mealCounts.get(o.selectedOption.name) || 0) + 1))
-    const sortedMeals = [...mealCounts.entries()].sort((a, b) => b[1] - a[1])
+    const mealCounts = new Map<string, { originalName: string; count: number }>()
+    orders.forEach((o) => {
+      // Exclude cancelled orders from favorite meal calculation
+      if (o.status === "cancelled") return
+      const lowerName = o.selectedOption.name.toLowerCase()
+      const existing = mealCounts.get(lowerName)
+      if (existing) {
+        existing.count++
+      } else {
+        mealCounts.set(lowerName, { originalName: o.selectedOption.name, count: 1 })
+      }
+    })
+    const sortedMeals = [...mealCounts.values()].sort((a, b) => b.count - a.count)
 
     return {
       streak,
-      favoriteMeal: sortedMeals[0]?.[0] ?? "—",
-      favoriteMealCount: sortedMeals[0]?.[1] ?? 0,
-      ordersThisMonth: orders.filter((o) => o.orderDate >= thisMonthStart).length,
+      favoriteMeal: sortedMeals[0]?.originalName ?? "—",
+      favoriteMealCount: sortedMeals[0]?.count ?? 0,
+      ordersThisMonth: orders.filter((o) => o.orderDate >= thisMonthStart && o.status !== "cancelled").length,
     }
   }, [orders])
 
@@ -66,7 +88,11 @@ export default function EmployeeMenuPage() {
 
     const fetchOrders = async () => {
       const db = await getDb()
-      const ordersQuery = query(collection(db, "orders"), where("userId", "==", user.uid))
+      const ordersQuery = query(
+        collection(db, "orders"),
+        where("userId", "==", user.uid),
+        orderBy("orderDate", "desc")
+      )
 
       const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
         const ordersData = snapshot.docs.map((doc) => ({
